@@ -63,7 +63,8 @@ describe('composePaper', () => {
 
   it('9:16도 만들어진다', () => {
     const v = composePaper(media.slice(0, 4), { seed: 1, aspect: '9:16' })
-    expect(v.stage.height).toBeGreaterThan(v.stage.width)
+    expect(v.stage.kind).toBe('paper')
+    if (v.stage.kind === 'paper') expect(v.stage.height).toBeGreaterThan(v.stage.width)
   })
 
   it('미디어가 없어도 깨지지 않는다', () => {

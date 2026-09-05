@@ -30,6 +30,8 @@ export type Project = {
   theme: 'doljanchi' | 'birthday' | 'wedding' | 'travel'
   aspect: '16:9' | '9:16' | '1:1'
   seed: number
+  /** 신문 문구에 쓰는 주인공 이름 */
+  subjectName?: string
   createdAt: number
   updatedAt: number
 }
