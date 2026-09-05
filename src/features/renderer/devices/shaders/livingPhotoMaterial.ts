@@ -33,6 +33,8 @@ export function createLivingPhotoMaterial(
       uUvOffset: { value: new Vector2(0, 0) },
       uUvScale: { value: new Vector2(1, 1) },
       uProgress: { value: 1 },
+      uFog: { value: 0 },
+      uFogColor: { value: new Color('#0c0b0a') },
       uHtStrength: { value: halftoneStrength },
       uHtCells: { value: halftone.cells },
       uHtAngle: { value: (halftone.angle * Math.PI) / 180 },
@@ -61,7 +63,8 @@ export function createLivingPhotoMaterial(
       precision highp float;
       varying vec2 vUv;
       uniform sampler2D uMap;
-      uniform float uAspect, uProgress, uHtStrength;
+      uniform float uAspect, uProgress, uHtStrength, uFog;
+      uniform vec3 uFogColor;
       uniform vec2 uUvOffset, uUvScale;
       uniform float uHtCells, uHtAngle, uHtMis, uHtBleed, uHtColorInk, uHtDesat, uHtContrast;
       uniform vec3 uHtPaper;
@@ -87,7 +90,8 @@ export function createLivingPhotoMaterial(
         vec2 m = inkMask(field, uProgress, uInkFeather, uInkEdge);
         col = sepiaMix(col, uProgress, uInkSepia);
         col = mix(col, col * vec3(0.25, 0.22, 0.28), m.y * uInkDark);
-        gl_FragColor = vec4(col, m.x);
+        col = mix(col, uFogColor, uFog);
+        gl_FragColor = vec4(col, m.x * (1.0 - uFog));
       }
     `,
   })
@@ -98,6 +102,12 @@ export function setLivingPhotoUniforms(material: ShaderMaterial, u: LivingPhotoU
   ;(material.uniforms.uUvOffset.value as Vector2).set(u.uvOffset[0], u.uvOffset[1])
   ;(material.uniforms.uUvScale.value as Vector2).set(u.uvScale[0], u.uvScale[1])
   material.uniforms.uProgress.value = u.progress
+}
+
+/** 거리 안개(0 = 없음, 1 = 배경색에 완전히 묻힘) */
+export function setLivingPhotoFog(material: ShaderMaterial, fog: number, color?: string) {
+  material.uniforms.uFog.value = fog
+  if (color) (material.uniforms.uFogColor.value as Color).set(color)
 }
 
 export function setLivingPhotoHalftoneStrength(material: ShaderMaterial, strength: number) {
