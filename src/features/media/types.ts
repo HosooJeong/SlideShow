@@ -32,6 +32,20 @@ export type Project = {
   seed: number
   /** 신문 문구에 쓰는 주인공 이름 */
   subjectName?: string
+  music?: ProjectMusic
   createdAt: number
   updatedAt: number
+}
+
+export type ProjectMusic = {
+  blobKey: string
+  name: string
+  /** 초 */
+  duration: number
+  /** 0~1 */
+  volume: number
+  fadeIn: number
+  fadeOut: number
+  /** 영상 길이를 음악 길이에 맞출지 */
+  fitDuration: boolean
 }

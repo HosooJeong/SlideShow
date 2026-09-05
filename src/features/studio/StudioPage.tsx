@@ -6,10 +6,12 @@ import { Dropzone } from '@/features/media/components/Dropzone'
 import { MediaGrid } from '@/features/media/components/MediaGrid'
 import { IngestStatus } from '@/features/media/components/IngestStatus'
 import { formatBytes } from '@/features/media/fit'
+import { ProjectSettings } from './ProjectSettings'
 
 export function StudioPage() {
   const project = useProjectStore((s) => s.current)
   const ensureProject = useProjectStore((s) => s.ensure)
+  const updateProject = useProjectStore((s) => s.update)
   const { items, thumbUrls, jobs, status, load, addFiles, remove, reorder, clearFinishedJobs } =
     useMediaStore()
 
@@ -42,6 +44,8 @@ export function StudioPage() {
           </Link>
         )}
       </header>
+
+      {project && <ProjectSettings project={project} onChange={updateProject} />}
 
       {items.length === 0 ? (
         <Dropzone onFiles={addFiles} disabled={!ready} />

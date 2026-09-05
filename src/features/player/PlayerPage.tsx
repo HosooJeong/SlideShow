@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { composePaper } from '@/features/composer/composePaper'
 import { composeNewspaper } from '@/features/composer/composeNewspaper'
+import { fitTimings } from '@/features/composer/fitDuration'
+import { useMusicSync } from '@/features/audio/useMusicSync'
+import { preloadCompositionFonts } from '@/features/renderer/preloadFonts'
 import { useMediaStore } from '@/features/media/store'
 import { useProjectStore } from '@/features/project/store'
 import { SceneRenderer } from '@/features/renderer/SceneRenderer'
@@ -17,6 +20,7 @@ export function PlayerPage() {
   const { items, status, load } = useMediaStore()
   const [halftone, setHalftone] = useState(true)
   const [stageKind, setStageKind] = useState<'newspaper' | 'paper'>('newspaper')
+  const [muted, setMuted] = useState(false)
 
   useEffect(() => {
     ensureProject().then((p) => {
@@ -32,12 +36,25 @@ export function PlayerPage() {
       halftoneStrength: halftone ? 0.5 : 0,
     }
     if (stageKind === 'paper') return composePaper(items, base)
-    return composeNewspaper(items, {
+    const opts = {
       ...base,
       name: project.subjectName,
       date: formatKoreanDate(project.date ?? new Date().toISOString()),
-    })
+    }
+    const first = composeNewspaper(items, opts)
+    // 음악 길이에 맞추기: 기본 타이밍으로 만든 길이를 기준으로 dwell/travel을 조정해 한 번 더 만든다
+    if (project.music?.fitDuration && project.music.duration > 0) {
+      return composeNewspaper(items, {
+        ...opts,
+        ...fitTimings(first.duration, project.music.duration),
+      })
+    }
+    return first
   }, [project, items, halftone, stageKind])
+  useEffect(() => {
+    if (composition) void preloadCompositionFonts(composition)
+  }, [composition])
+  useMusicSync(project?.music, composition?.duration ?? 0, muted)
   const { textures, loading } = useMediaTextures(items)
 
   const setDuration = usePlayerStore((s) => s.setDuration)
@@ -118,6 +135,7 @@ export function PlayerPage() {
         onHalftone={setHalftone}
         stageKind={stageKind}
         onStageKind={setStageKind}
+        music={project?.music ? { name: project.music.name, muted, onMuted: setMuted } : null}
       />
     </div>
   )
