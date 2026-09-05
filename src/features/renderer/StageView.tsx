@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import { DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
@@ -11,9 +11,10 @@ import { SlotMesh } from './SlotMesh'
 import { TextBlockMesh } from './TextBlockMesh'
 import { FlashOverlay, StreamView } from './StreamView'
 import { ParticleTransitionMesh } from './devices/ParticleTransitionMesh'
+import { GlassLens } from './devices/GlassLens'
 import type { RenderClock } from './clock'
 import type { TextureMap, VideoMap } from './textures'
-import type { Composition, NewspaperStage, Page } from './types'
+import type { Composition, LensPass, NewspaperStage, Page } from './types'
 import { clamp01, easings } from '@/shared/utils/easing'
 
 /**
@@ -190,6 +191,9 @@ function NewspaperView({
           </group>
         </group>
       )}
+      {stage.lenses?.map((lens) => (
+        <LensGate key={lens.id} pass={lens} clock={clock} />
+      ))}
       {stage.transitions?.map((tr) => {
         const from = composition.slots.find((s) => s.id === tr.fromSlotId)
         const to = composition.slots.find((s) => s.id === tr.toSlotId)
@@ -269,4 +273,15 @@ function PageView({
       })}
     </group>
   )
+}
+
+/** 렌즈가 보이는 구간(여유 포함)에서만 투과 재질을 마운트한다(FBO 비용 절약) */
+function LensGate({ pass, clock }: { pass: LensPass; clock: RenderClock }) {
+  const [mounted, setMounted] = useState(false)
+  useFrame(() => {
+    const t = clock.read()
+    const on = t >= pass.t0 - 0.3 && t <= pass.t0 + pass.duration + 0.3
+    if (on !== mounted) setMounted(on)
+  })
+  return mounted ? <GlassLens pass={pass} clock={clock} /> : null
 }
