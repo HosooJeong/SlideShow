@@ -10,6 +10,7 @@ import { RuleMesh } from './RuleMesh'
 import { SlotMesh } from './SlotMesh'
 import { TextBlockMesh } from './TextBlockMesh'
 import { FlashOverlay, StreamView } from './StreamView'
+import { ParticleTransitionMesh } from './devices/ParticleTransitionMesh'
 import type { RenderClock } from './clock'
 import type { TextureMap, VideoMap } from './textures'
 import type { Composition, NewspaperStage, Page } from './types'
@@ -189,6 +190,23 @@ function NewspaperView({
           </group>
         </group>
       )}
+      {stage.transitions?.map((tr) => {
+        const from = composition.slots.find((s) => s.id === tr.fromSlotId)
+        const to = composition.slots.find((s) => s.id === tr.toSlotId)
+        const mapA = from && textures.get(from.mediaId)
+        const mapB = to && textures.get(to.mediaId)
+        return from && to && mapA && mapB ? (
+          <ParticleTransitionMesh
+            key={tr.id}
+            transition={tr}
+            from={from}
+            to={to}
+            mapA={mapA}
+            mapB={mapB}
+            clock={clock}
+          />
+        ) : null
+      })}
       <group ref={restRef}>
         {stage.pages.slice(1).map((page) => (
           <PageView

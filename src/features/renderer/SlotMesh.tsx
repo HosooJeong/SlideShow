@@ -7,7 +7,7 @@ import {
   setLivingPhotoFog,
   setLivingPhotoUniforms,
 } from './devices/shaders/livingPhotoMaterial'
-import { appearProgress, kenburnsUv } from './kenburns'
+import { appearProgress, kenburnsUv, vanishProgress } from './kenburns'
 import type { RenderClock } from './clock'
 import type { Devices, Slot } from './types'
 
@@ -65,7 +65,8 @@ export function SlotMesh({
 
   useFrame((state) => {
     const t = clock.read()
-    const progress = appearProgress(slot.appear, t)
+    const gone = vanishProgress(slot.vanish, t)
+    const progress = appearProgress(slot.appear, t) * (1 - gone)
     const kb = kenburnsUv(slot.kenburns, slot.mediaAspect, slot.w / slot.h, t)
     setLivingPhotoUniforms(material, { ...kb, progress })
     let fogAmount = 0

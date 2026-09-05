@@ -2,7 +2,15 @@ import { pathDuration, type CameraKey } from '@/features/renderer/camera/cameraP
 import { halftoneDefaults } from '@/features/renderer/devices/shaders/halftoneMaterial'
 import { inkRevealDefaults } from '@/features/renderer/devices/shaders/inkRevealMaterial'
 import { paperDefaults } from '@/features/renderer/devices/shaders/paperMaterial'
-import type { Appear, Composition, Page, Rule, Slot, TextBlock } from '@/features/renderer/types'
+import type {
+  Appear,
+  Composition,
+  Page,
+  ParticleTransition,
+  Rule,
+  Slot,
+  TextBlock,
+} from '@/features/renderer/types'
 import { createRng, type Rng } from '@/shared/utils/seededRandom'
 import { distanceForHeight, FOV } from './composePaper'
 import { planClip } from '@/features/renderer/clip'
@@ -111,6 +119,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   const opening = 1.8
   const overviewZ = distanceForHeight(PAGE_H * 1.06, 1)
   const keys: CameraKey[] = []
+  const transitions: ParticleTransition[] = []
   let t = opening
   const push = (
     x: number,
@@ -124,9 +133,30 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
 
   pages.forEach((page, pi) => {
     // 면 전체 보기
+    const travelStart = t
     if (pi !== 0) t += travel * 1.2
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
     const pageArrive = t
+    // 면 넘김: 앞 면의 마지막 사진이 입자로 흩어져 이 면의 첫 사진으로 모인다
+    if (pi !== 0) {
+      const prev = pages[pi - 1]
+      const fromSlot = prev.slots[prev.slots.length - 1]
+      const toSlot = page.slots[0]
+      if (fromSlot && toSlot) {
+        const duration = travel * 1.2 + 0.5
+        transitions.push({
+          id: `tr-${pi}`,
+          fromSlotId: fromSlot.id,
+          toSlotId: toSlot.id,
+          t0: travelStart - 0.25,
+          duration,
+          count: 22000,
+          spread: 2.6,
+          seed: opts.seed + pi * 31,
+        })
+        fromSlot.vanish = { t0: travelStart - 0.25, duration: duration * 0.45 }
+      }
+    }
     t += pi === 0 ? 1.4 : 1.0
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
 
@@ -160,9 +190,12 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     t += 0.8
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
 
-    // 사진은 면 전체 보기에 도착하면 차례로 스며든다(빈 틀이 보이지 않게)
+    // 사진은 면 전체 보기에 도착하면 차례로 스며든다(빈 틀이 보이지 않게). 입자가 모이는 사진은 모이는 순간 나타난다
     page.slots.forEach((s, i) => {
-      s.appear = { kind: 'ink', t0: pageArrive + 0.25 + i * 0.35, duration: 1.4 }
+      const tr = transitions.find((x) => x.toSlotId === s.id)
+      s.appear = tr
+        ? { kind: 'fade', t0: tr.t0 + tr.duration - 0.2, duration: 0.25 }
+        : { kind: 'ink', t0: pageArrive + 0.25 + i * 0.35, duration: 1.4 }
     })
     // 텍스트·선은 면 전체 보기에 도착할 때 페이드 인. 1면은 날아오는 동안 이미 인쇄된 상태
     const fade: Appear =
@@ -182,6 +215,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
       pages,
       paper: { ...paperDefaults, baseColor: '#efe6d2', seed: opts.seed % 97 },
       opening: { duration: opening },
+      transitions,
     },
     slots,
     camera: keys,
