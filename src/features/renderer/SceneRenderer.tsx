@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { StageView } from './StageView'
 import type { RenderClock } from './clock'
-import type { TextureMap } from './textures'
+import type { TextureMap, VideoMap } from './textures'
 import type { Composition } from './types'
 
 /**
@@ -11,11 +11,13 @@ import type { Composition } from './types'
 export function SceneRenderer({
   composition,
   textures,
+  videos,
   clock,
   className,
 }: {
   composition: Composition
   textures: TextureMap
+  videos?: VideoMap
   clock: RenderClock
   className?: string
 }) {
@@ -26,7 +28,7 @@ export function SceneRenderer({
       dpr={[1, 2]}
       gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' }}
     >
-      <StageView composition={composition} textures={textures} clock={clock} />
+      <StageView composition={composition} textures={textures} videos={videos} clock={clock} />
     </Canvas>
   )
 }

@@ -4,8 +4,16 @@ import { inkRevealDefaults } from '@/features/renderer/devices/shaders/inkReveal
 import { paperDefaults } from '@/features/renderer/devices/shaders/paperMaterial'
 import type { Composition, Slot } from '@/features/renderer/types'
 import { createRng } from '@/shared/utils/seededRandom'
+import { planClip } from '@/features/renderer/clip'
 
-export type ComposeMedia = { id: string; width: number; height: number }
+export type ComposeMedia = {
+  id: string
+  width: number
+  height: number
+  kind?: 'image' | 'video'
+  /** 영상 길이(초) */
+  duration?: number
+}
 
 export type ComposeOptions = {
   seed: number
@@ -14,6 +22,7 @@ export type ComposeOptions = {
   dwell?: number
   travel?: number
   halftoneStrength?: number
+  clips?: { maxSeconds: number; volume: number }
 }
 
 export const FOV = 38
@@ -116,6 +125,15 @@ export function composePaper(media: ComposeMedia[], opts: ComposeOptions): Compo
     s.appear = { kind: 'ink', t0: arrive - travel * 0.9, duration: travel * 0.9 + 0.7 }
     s.kenburns.start = arrive - travel
     s.kenburns.end = leave + travel
+    const m = media[i]
+    if (m.kind === 'video') {
+      s.clip = planClip({
+        sourceDuration: m.duration ?? 0,
+        windowDuration: s.kenburns.end - s.kenburns.start,
+        maxSeconds: opts.clips?.maxSeconds ?? 4,
+        volume: opts.clips?.volume ?? 0,
+      })
+    }
   })
 
   return {

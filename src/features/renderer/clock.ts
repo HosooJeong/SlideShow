@@ -6,4 +6,6 @@ export type RenderClock = {
   read: () => number
   /** t가 바뀌었을 때 알림. 렌더러는 이때 한 프레임을 그린다 */
   subscribe: (cb: () => void) => () => void
+  /** 연속 재생 중인지. 없거나 false면 스크럽/내보내기 모드(영상은 시크로 정확히 맞춤) */
+  isPlaying?: () => boolean
 }
