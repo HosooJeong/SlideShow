@@ -68,8 +68,9 @@ describe('composeNewspaper', () => {
   })
 
   it('슬롯 등장은 카메라 도착 전에 시작해 영상 길이 안에 끝난다', () => {
+    const targets = new Set((stage.transitions ?? []).map((t) => t.toSlotId))
     for (const s of comp.slots) {
-      expect(s.appear.kind).toBe('ink')
+      expect(s.appear.kind).toBe(targets.has(s.id) ? 'fade' : 'ink')
       expect(s.appear.t0).toBeGreaterThan(0)
       expect(s.appear.t0 + s.appear.duration).toBeLessThanOrEqual(comp.duration)
     }
@@ -119,5 +120,29 @@ describe('composeNewspaper 영상 클립', () => {
   it('클립 창은 켄번즈 창과 같다', () => {
     const v = comp.slots.find((s) => s.mediaId === 'v1')!
     expect(v.kenburns.end).toBeGreaterThan(v.kenburns.start)
+  })
+})
+
+describe('composeNewspaper 파티클 전환', () => {
+  const comp = composeNewspaper(media, { seed: 7, aspect: '16:9' })
+  const stage = comp.stage as NewspaperStage
+
+  it('면이 2개 이상이면 면 사이마다 전환이 하나씩 있다', () => {
+    expect(stage.pages.length).toBeGreaterThan(1)
+    expect(stage.transitions?.length).toBe(stage.pages.length - 1)
+  })
+  it('출발 슬롯은 앞 면 마지막, 도착 슬롯은 다음 면 첫 사진이고 시간이 이어진다', () => {
+    for (let i = 1; i < stage.pages.length; i++) {
+      const tr = stage.transitions![i - 1]
+      const prev = stage.pages[i - 1]
+      expect(tr.fromSlotId).toBe(prev.slots[prev.slots.length - 1].id)
+      expect(tr.toSlotId).toBe(stage.pages[i].slots[0].id)
+      expect(tr.t0 + tr.duration).toBeLessThanOrEqual(comp.duration)
+      const from = comp.slots.find((s) => s.id === tr.fromSlotId)!
+      const to = comp.slots.find((s) => s.id === tr.toSlotId)!
+      expect(from.vanish?.t0).toBe(tr.t0)
+      expect(to.appear.kind).toBe('fade')
+      expect(to.appear.t0).toBeCloseTo(tr.t0 + tr.duration - 0.2)
+    }
   })
 })

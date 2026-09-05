@@ -41,6 +41,21 @@ export type Slot = {
   clip?: Clip
   /** 3D 방향(오일러, 라디안). 있으면 rotation 대신 쓴다(스트림 무대) */
   orient?: [number, number, number]
+  /** 사라짐(파티클 분해의 출발 사진). t0부터 duration 동안 알파가 0으로 */
+  vanish?: { t0: number; duration: number }
+}
+
+/** C2 파티클 분해·재조합: fromSlot의 사진이 입자로 흩어져 toSlot 자리에 모인다 */
+export type ParticleTransition = {
+  id: string
+  fromSlotId: string
+  toSlotId: string
+  t0: number
+  duration: number
+  count: number
+  /** 중간 경로가 흩어지는 폭(무대 단위) */
+  spread: number
+  seed: number
 }
 
 export type Clip = {
@@ -99,6 +114,7 @@ export type NewspaperStage = {
   paper: PaperParams
   /** 신문이 회전하며 날아와 착지하는 오프닝 길이(초). 0이면 없음 */
   opening: { duration: number }
+  transitions?: ParticleTransition[]
 }
 
 /** 면 없는 연속 스트림: 사진들이 3D 경로 옆에 떠 있고 카메라가 사이를 날아간다 */

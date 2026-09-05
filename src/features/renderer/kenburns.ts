@@ -45,3 +45,10 @@ export function appearProgress(appear: { kind: string; t0: number; duration: num
 }
 
 const clampAbs = (v: number, max: number) => Math.max(-max, Math.min(max, v))
+
+/** 사라짐 진행도(0 = 보임, 1 = 완전히 사라짐) */
+export function vanishProgress(vanish: { t0: number; duration: number } | undefined, t: number) {
+  if (!vanish) return 0
+  if (vanish.duration <= 0) return t >= vanish.t0 ? 1 : 0
+  return easings.inOutSine(clamp01((t - vanish.t0) / vanish.duration))
+}
