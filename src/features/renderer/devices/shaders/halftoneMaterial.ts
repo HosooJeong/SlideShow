@@ -1,4 +1,5 @@
 import { Color, ShaderMaterial, Texture } from 'three'
+import { halftoneGlsl } from './halftone.glsl'
 import { noiseGlsl } from './noise.glsl'
 
 export type HalftoneParams = {
@@ -67,49 +68,13 @@ export function createHalftoneMaterial(map: Texture, params: HalftoneParams, asp
       uniform float uAspect, uCells, uAngle, uMis, uStrength, uBleed, uColorInk, uDesat, uContrast;
       uniform vec3 uPaper;
       ${noiseGlsl}
+      ${halftoneGlsl}
 
       void main() {
         vec3 src = texture2D(uMap, vUv).rgb;
-        float l = luma(src);
-        // 인쇄 대비: 중간톤 압축
-        float ink = pow(clamp(1.0 - l, 0.0, 1.0), uContrast);
-
-        // 정방 셀 격자 (짧은 변 기준 uCells개), 회전
-        vec2 p = vec2(vUv.x * uAspect, vUv.y) * uCells / min(uAspect, 1.0);
-        float c = cos(uAngle), s = sin(uAngle);
-        vec2 r = mat2(c, -s, s, c) * p;
-        vec2 cell = fract(r) - 0.5;
-        float d = length(cell) * 2.0;                // 0 중심 ~ 1.41 모서리
-        // 셀 중심의 잉크량으로 도트 반지름 결정(셀 안은 균일해야 도트가 둥글다)
-        vec2 cellCenterUv;
-        {
-          vec2 rc = (floor(r) + 0.5);
-          vec2 pc = mat2(c, s, -s, c) * rc;       // 역회전
-          cellCenterUv = vec2(pc.x / uAspect, pc.y) * min(uAspect, 1.0) / uCells;
-        }
-        vec3 cSrc = texture2D(uMap, clamp(cellCenterUv, 0.0, 1.0)).rgb;
-        float cInk = pow(clamp(1.0 - luma(cSrc), 0.0, 1.0), uContrast);
-        float radius = sqrt(cInk) * 1.15;            // 면적 비례. 1.15로 어두운 곳은 도트가 맞닿아 뭉침
-        float aa = fwidth(d) * 1.2;
-        float edge = aa + uBleed * 0.25;
-        float dot_ = 1.0 - smoothstep(radius - edge, radius + edge, d);
-
-        // 잉크 색: 검정과 (어긋난) 사진 색의 혼합. 어긋남은 컬러 프린지를 만든다.
-        vec3 shifted = texture2D(uMap, vUv + vec2(uMis, -uMis * 0.5)).rgb;
-        shifted = mix(shifted, vec3(luma(shifted)), uDesat);
-        vec3 inkColor = mix(vec3(0.08, 0.07, 0.09), shifted * 0.55, uColorInk);
-        vec3 printed = mix(uPaper, inkColor, dot_);
-
-        // 밝은 영역엔 도트가 거의 없어 종이 그대로 → 원본을 살짝 비쳐 사진처럼 읽히게
-        vec3 tinted = mix(src, vec3(l), uDesat) * uPaper / max(luma(uPaper), 0.001);
-        printed = mix(tinted, printed, 0.85);
-
-        // 사진 자체 질감: 종이 섬유가 잉크 위로 살짝
-        float fiber = fbm(vUv * vec2(60.0, 90.0) * uAspect, 2) - 0.5;
-        printed += fiber * 0.05;
-
-        vec3 out_ = mix(src, printed, uStrength);
-        gl_FragColor = vec4(out_, 1.0);
+        HalftoneParams hp = HalftoneParams(uCells, uAngle, uMis, uBleed, uColorInk, uDesat, uContrast, uPaper);
+        vec3 printed = halftonePrint(uMap, vUv, uAspect, hp);
+        gl_FragColor = vec4(mix(src, printed, uStrength), 1.0);
       }
     `,
   })

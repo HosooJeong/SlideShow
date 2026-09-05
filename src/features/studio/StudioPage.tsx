@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useProjectStore } from '@/features/project/store'
 import { useMediaStore } from '@/features/media/store'
 import { Dropzone } from '@/features/media/components/Dropzone'
@@ -31,6 +32,15 @@ export function StudioPage() {
               : '아직 미디어가 없어요. 사진과 영상을 추가해 시작해요.'}
           </p>
         </div>
+        {items.length > 0 && (
+          <Link
+            to="/player"
+            className="rounded-lg bg-amber-300 px-4 py-2 font-medium text-neutral-950 hover:bg-amber-200"
+            data-testid="go-player"
+          >
+            미리보기 ▶
+          </Link>
+        )}
       </header>
 
       {items.length === 0 ? (

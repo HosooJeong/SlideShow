@@ -61,8 +61,8 @@ function strip(k: CameraKey): CameraPose {
  */
 export function buildVisitPath(opts: {
   overview: { x: number; y: number; z: number; lookX: number; lookY: number }
-  targets: { x: number; y: number; z: number; tilt?: number }[]
-  /** 대상에 다가갔을 때 카메라와 대상 사이 거리 */
+  targets: { x: number; y: number; z: number; tilt?: number; approach?: number }[]
+  /** 대상에 다가갔을 때 카메라와 대상 사이 거리(대상별 approach가 없을 때) */
   approach: number
   dwell: number
   travel: number
@@ -92,7 +92,7 @@ export function buildVisitPath(opts: {
     const near: CameraPose = {
       x: target.x,
       y: target.y,
-      z: target.z + approach,
+      z: target.z + (target.approach ?? approach),
       lookX: target.x,
       lookY: target.y,
       lookZ: target.z,
