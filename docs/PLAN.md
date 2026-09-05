@@ -1,6 +1,8 @@
-# 기념일 슬라이드쇼 웹앱 — 기획서 (v0.2)
+# 기념일 슬라이드쇼 웹앱 — 기획서 (v0.3)
 
 > 사진/동영상을 올리면 해리포터의 마법 신문처럼, **사진이 살아 움직이는 무대(신문·앨범·액자 벽)**를 카메라가 훑어가는 기념일 영상이 자동 생성되는 웹앱.
+
+**v0.3 변경**: 연출 장치를 적극 탐색하기로 함(→ [DEVICES.md](./DEVICES.md)). 3D 카메라·리퀴드 글래스·잉크 번짐·파티클 분해·연속 스트림(마블 인트로 느낌) 등을 수용하기 위해 렌더러를 PixiJS에서 **three.js(React Three Fiber)**로 변경. 실험실(`/lab`) 단계 추가.
 
 **v0.2 변경**: "사진이 차례로 넘어가는 슬라이드쇼"에서 "디자인된 무대 안에 살아있는 사진을 박고, 카메라가 그 무대를 여행하는 영상"으로 컨셉 전환. 배경·템플릿이 사진과 동급의 주인공이 된다. (→ 6장, 6-1장)
 
@@ -79,8 +81,12 @@
 | 빌드/프레임워크 | **Vite + React 18 + TypeScript** | 빠른 개발, 생태계, 정적 배포 |
 | 스타일 | Tailwind CSS | 테마 토큰 관리 쉬움 |
 | 상태 | Zustand | 가볍고 IndexedDB 연동 간단 |
-| 렌더 엔진 | **PixiJS v8 (WebGL/WebGPU)** | 수백 장 사진·파티클을 60fps로, 캔버스 기반이라 내보내기와 코드 공유 |
-| 타임라인/이징 | GSAP (timeline, seek) 또는 자체 경량 트윈 | 시간 t로 정확히 시킹 가능 |
+| 렌더 엔진 | **three.js + React Three Fiber(R3F) + drei** | 3D 카메라·DOF·굴절(리퀴드 글래스)·커스텀 셰이더·파티클을 한 렌더러에서. React와 선언적으로 결합 |
+| 포스트프로세싱 | `postprocessing` (pmndrs) | 필름 그레인·블룸·DOF·비네트·갓레이를 패스로 조합 |
+| 텍스트 | `troika-three-text` (SDF) | 3D 공간에서 선명한 한글 활자, 폰트 서브셋 로딩 |
+| 트랜지션 셰이더 | `gl-transitions` (MIT) 일부 포팅 | 디스플레이스먼트·잉크·물결 전환 |
+| 파라미터 튜닝 | `leva` | 실험실에서 장치 파라미터 실시간 조정 |
+| 타임라인/이징 | 자체 경량 트윈 + 이징 함수 (필요 시 GSAP) | 시간 t로 정확히 시킹 가능. R3F `useFrame` 대신 우리가 t를 주입 |
 | 저장 | IndexedDB (`idb`) — 원본 Blob + 프로젝트 JSON | 새로고침 복원, 서버 없음 |
 | 미디어 처리 | `createImageBitmap`, OffscreenCanvas 썸네일, `exifr`(회전), `heic2any` | 브라우저 네이티브 우선 |
 | 오디오 | Web Audio API | 페이드, 비트 분석 |
@@ -88,8 +94,13 @@
 | 테스트 | Vitest + Playwright(시각 회귀 스냅샷) | 렌더는 스냅샷으로 검증 |
 | 배포 | Vercel 또는 GitHub Pages (정적) | 비용 0 |
 
-**왜 DOM/CSS 애니메이션이 아니라 캔버스인가**
+**왜 DOM/CSS 애니메이션이 아니라 WebGL 캔버스인가**
 DOM+Framer Motion은 만들기 빠르지만, MP4 내보내기 시 프레임 단위 캡처가 사실상 불가능(html2canvas 느리고 부정확). 캔버스 렌더러는 `render(timeline, t)` 하나로 재생과 내보내기를 다 처리한다. 대신 UI(업로드, 설정, 플레이어 컨트롤)는 React DOM으로 만든다.
+
+**왜 PixiJS가 아니라 three.js인가 (v0.3)**
+탐색하려는 장치의 절반 이상이 3D 카메라(원근·DOF), 굴절 재질(리퀴드 글래스), 정점 변위(페이지 컬·깊이 시차), 대량 파티클이다. PixiJS는 2D 셰이더까지는 되지만 이 영역은 억지가 된다. three.js는 2D 무대(신문)도 정면 카메라로 문제없이 처리하고, R3F·drei·postprocessing 생태계가 필요한 장치 대부분을 검증된 컴포넌트로 제공한다. 비용은 학습 곡선과 초기 번들 크기(~600KB gzip 전후, 코드 스플리팅으로 완화).
+
+**렌더 루프 원칙**: R3F의 자동 프레임 루프를 끄고(`frameloop="never"`), 플레이어/내보내기가 `t`를 정해 `invalidate()`로 한 프레임씩 그린다. 모든 애니메이션은 `t`로부터 계산되며 이전 프레임 상태에 의존하지 않는다(유체·물리 같은 상태형 장치는 고정 스텝 순차 시뮬로 예외 처리, DEVICES.md 참고).
 
 ---
 
@@ -102,7 +113,10 @@ src/
     media/          업로드, 썸네일, EXIF, IndexedDB 저장
     project/        프로젝트 CRUD, 설정 UI
     composer/       미디어 + 설정 → Timeline(씬 배열) 자동 생성 (시드 랜덤)
-    renderer/       PixiJS 씬 그래프, render(timeline, t), 씬 템플릿·트랜지션·파티클
+    renderer/       R3F 씬, render(composition, t), 카메라, 슬롯 마스크
+      devices/      장치 컴포넌트·패스 (필름룩, 하프톤, 잉크등장, 파티클분해, 리퀴드글래스 …)
+      stages/       무대 템플릿 (newspaper, stream, scrapbook …) = 장치들의 조합 + 레이아웃
+    lab/            /lab/:device 실험실 (leva 슬라이더, 스파이크용)
     player/         재생 루프(rAF), 시크, 오디오 동기화, 전체화면
     exporter/       프레임 루프 → VideoEncoder → mp4-muxer → 다운로드
     themes/         색·폰트·장식 에셋 세트
@@ -146,9 +160,12 @@ type Slot = { id: string; x: number; y: number; w: number; h: number; rotation: 
   living: { kind: 'kenburns' | 'sway' | 'sepiaToColor' | 'videoLoop'; params: Record<string, number> } };
 type Page = { id: string; preset: string; x: number; y: number; w: number; h: number;
   slots: Slot[]; texts: { role: 'headline' | 'body' | 'ad' | 'caption'; text: string; box: [number, number, number, number] }[] };
-type Stage = { kind: 'newspaper' | 'scrapbook' | 'framewall'; width: number; height: number; pages: Page[] };
+type Stage =
+  | { kind: 'newspaper' | 'scrapbook' | 'framewall'; width: number; height: number; pages: Page[] }
+  | { kind: 'stream'; path: [number, number, number][]; slots: (Slot & { z: number; tilt: [number, number, number] })[] }; // 면 없는 연속 스트림
+type Device = { id: string; params: Record<string, number | string | boolean> };   // 장치 인스턴스(필름룩, 잉크등장 등)
 type CameraKey = { t: number; x: number; y: number; zoom: number; rotation: number; ease: string };
-type Composition = { stage: Stage; camera: CameraKey[]; transitions: { t: number; type: string }[]; totalDuration: number };
+type Composition = { stage: Stage; camera: CameraKey[]; transitions: { t: number; type: string }[]; devices: Device[]; totalDuration: number };
 ```
 
 ### 핵심 루프
@@ -191,6 +208,7 @@ Camera(t) → 뷰포트 변환
 - **룩**: 크림색 종이, 하프톤 도트 오버레이(사진 위 얕게), 잉크 약간 번진 세리프 활자, 낡은 접힌 자국. 돌잔치판은 여기에 파스텔 컬러 포인트와 컨페티를 얹어 무겁지 않게.
 
 ### 6-3. 이후 무대
+- **연속 스트림 (2호, 마블 인트로 느낌)**: 면 구분 없이 사진들이 3D 공간의 곡선 경로 위에 떠 있고 카메라가 계속 날아간다. 속도 램프·화이트 플래시·모션 블러·DOF. 사진 100장+ 몽타주에 최적. 신문이 "서사"라면 스트림은 "에너지". 자세한 건 DEVICES.md A2.
 - **스크랩북/앨범**: 가죽 커버 → 펼침면, 폴라로이드·테이프·손글씨 캡션, 페이지 넘김 트랜지션.
 - **액자 벽**: 벽에 걸린 액자들이 각각 살아 움직이고, 카메라가 벽을 따라 걷는 느낌(패럴랙스 강함).
 - **기차 창문/여행 지도**: 여행 테마용, 나중에.
@@ -206,13 +224,13 @@ Camera(t) → 뷰포트 변환
 | 에셋 | 조달 방법 |
 |---|---|
 | 종이/가죽 텍스처 | 절차적 생성(노이즈+얼룩, 코드로) 우선, 부족하면 CC0 텍스처 |
-| 하프톤·잉크 번짐·비네트 | 셰이더(PixiJS filter)로 처리, 이미지 에셋 불필요 |
+| 하프톤·잉크 번짐·비네트 | 커스텀 셰이더·postprocessing 패스로 처리, 이미지 에셋 불필요 |
 | 활자 | 한글 세리프: 나눔명조/노토 세리프 KR/마루부리(OFL), 제호용 영문 Blackletter 계열 OFL 폰트 |
 | 테이프·스탬프·잉크 자국 | SVG 직접 제작 20~30개 (단순 형태라 가능) |
 | 신문 디테일 문구 풀 | 테마별 JSON, 초기 각 30~50개 문구 직접 작성 |
 | 오프닝 사운드 | 종이 넘김·펄럭임 SFX, CC0 |
 
-**렌더러 요구 변화**: 큰 좌표계 + 카메라 변환, 슬롯 마스킹, 레이어별 패럴랙스, 텍스트를 캔버스에 고품질로(PixiJS Text/HTMLText 또는 SDF), 하프톤·종이 필터. → 캔버스(PixiJS) 선택이 더 확실히 맞는 방향.
+**렌더러 요구 변화**: 큰 좌표계 + 카메라 변환, 슬롯 마스킹, 레이어별 패럴랙스, 3D 공간에서 선명한 텍스트(SDF), 하프톤·종이 셰이더, 원근 카메라와 굴절 재질. → WebGL 렌더러(three.js) 필수.
 
 ## 7. 개발 단계 (마일스톤)
 
@@ -220,14 +238,16 @@ Camera(t) → 뷰포트 변환
 |---|---|---|
 | **0. 셋업** | Vite+React+TS+Tailwind, ESLint/Prettier, Vitest, CI, 배포 파이프라인 | `main` 푸시 → 자동 배포되는 빈 앱 |
 | **1. 미디어** | 업로드, 썸네일, EXIF, IndexedDB 저장·복원, 정렬/삭제 | 새로고침 후 미디어 그대로 남음 |
-| **2. 렌더 엔진 + 플레이어** | PixiJS 캔버스, 무대 좌표계 + 카메라 변환, 슬롯 마스크, 살아있는 사진 1종, `render(timeline, t)`, 재생/시크 | 종이 위에 박힌 사진 10장을 카메라가 훑으며 끊김 없이 재생 |
+| **1.5 실험실(Lab)** | `/lab` 라우트 + leva, DEVICES.md 티어 A 장치 스파이크(3D 카메라+DOF, 필름 룩, 하프톤·종이, 잉크 등장, 디스플레이스먼트 전환, SDF 한글 텍스트) + 티어 B 중 파티클 분해·리퀴드 글래스 맛보기 | 장치별 판정과 기본 파라미터가 DEVICES.md에 기록됨. 룩 방향 확정 |
+| **2. 렌더 엔진 + 플레이어** | R3F 씬(frameloop 수동), 무대 좌표계 + 카메라 경로, 슬롯 마스크, 살아있는 사진 1종, 티어 A 장치 조립, `render(composition, t)`, 재생/시크 | 종이 위에 박힌 사진 10장을 카메라가 훑으며 끊김 없이 재생, 필름 룩 적용 |
 | **3. 마법 신문 무대 + 컴포저** | 신문 오프닝, 페이지 레이아웃 프리셋 5종, 헤드라인/기사/광고 문구 풀, 종이·하프톤 필터, 장식 SVG, 시드 랜덤 컴포저, 페이지 넘김·줌스루 전환 | 사진만 넣어도 "신문 영상"이 완성되고 "다시 섞기"로 구성이 바뀜 |
 | **4. 음악 + 텍스트 입력 + 설정 UI** | BGM 업로드/내장, 페이드, 길이 맞춤, 이름·날짜·문구 입력폼, 헤드라인 편집 | 음악 끝과 마지막 면이 맞아떨어짐 |
 | **5. 영상 클립** | 비디오 텍스처, 자동 트림, 음소거 옵션 | 사진·영상 섞인 프로젝트 재생 |
 | **6. 내보내기** | WebCodecs MP4, WebM 폴백, 진행률 | 1080p MP4 다운로드해 폰에서 재생 |
-| **7. 폴리싱 + 2호 무대** | 모바일 레이아웃, PWA, 온보딩, 에러 처리, 스크랩북/앨범 무대 추가 | 지인 돌잔치 영상 1편 실제 제작 |
+| **7. 2호 무대 + 티어 B 장치** | 연속 스트림 무대, 파티클 분해 전환, 리퀴드 글래스 돋보기, 페이지 컬, 비트 동기 | 같은 사진으로 신문/스트림 두 스타일 생성 가능 |
+| **8. 폴리싱** | 모바일 레이아웃, PWA, 온보딩, 에러 처리, 저사양 GPU 폴백(장치 자동 끄기) | 지인 돌잔치 영상 1편 실제 제작 |
 
-각 단계는 PR 1~3개 단위로 쪼개고, 단계 끝마다 배포된 데모로 확인.
+각 단계는 PR 1~3개 단위로 쪼개고, 단계 끝마다 배포된 데모로 확인. 실험실은 이후에도 유지되어 새 장치는 항상 `/lab`에서 먼저 검증한다.
 
 ---
 
@@ -239,6 +259,9 @@ Camera(t) → 뷰포트 변환
 | HEIC(아이폰) 호환 | `heic2any` 변환, 실패 시 "설정 → 카메라 → 호환성 우선" 안내 |
 | iOS Safari 제약 (WebCodecs 부분 지원, IndexedDB 용량, 자동재생) | 재생은 전 브라우저 지원, 내보내기는 Chrome/Edge 권장 표시 |
 | 영상 클립 시크 느림 | 내보내기 시에만 프레임 정확 모드, 재생 시엔 자연 재생 |
+| 저사양 GPU(내장 그래픽, 폰) | 장치별 비용 등급 부여, 시작 시 GPU 벤치 1초 → 등급 미달 장치 자동 비활성(트랜스미션·DOF·파티클 수 축소) |
+| 장치 과잉으로 "테크 데모" 느낌 | 무대별 기본 장치는 얕게, 포인트 장치는 영상당 2~3회만. 실험실 판정에 "감성" 축 필수 |
+| 상태형 장치(유체·물리)와 시크 불일치 | 재생 중 시크는 근사 허용, 내보내기는 t=0부터 순차 렌더로 정확 |
 | 폰트 라이선스 | Pretendard, 나눔 계열 등 OFL 폰트만 사용 |
 | BGM 저작권 | 내장곡은 CC0/직접 제작, 사용자 업로드곡은 사용자 책임 고지 |
 
@@ -254,3 +277,4 @@ Camera(t) → 뷰포트 변환
 6. **배포 위치**: Vercel / GitHub Pages / 기타.
 7. **텍스트 톤**: 신문 문구를 유머러스하게("구인: 뽀뽀 담당자") 갈지, 차분하게 갈지. 아니면 톤 선택 옵션.
 8. **레퍼런스 이미지**: 머릿속에 있는 신문/앨범 룩 레퍼런스가 있으면 공유해줘. 룩 개발 속도가 크게 달라져.
+9. **장치 우선순위**: DEVICES.md 티어 분류에 이견 있는지. 특히 연속 스트림을 2호 무대로 미루는 게 맞는지, 아니면 신문과 동시에 갈지.
