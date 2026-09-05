@@ -9,6 +9,7 @@ import { Group, MathUtils, PerspectiveCamera as ThreeCamera, Vector3 } from 'thr
 import { buildVisitPath, pathDuration, sampleCamera } from '@/features/renderer/camera/cameraPath'
 import { createRng } from '@/shared/utils/seededRandom'
 import { useLabTextures } from '../useLabTextures'
+import { readLabTime } from '../labClock'
 
 /**
  * A1 3D 카메라 + DOF, B2 필름 룩(그레인·비네트) 스파이크.
@@ -75,10 +76,10 @@ export function CameraDofScene() {
   const look = useRef(new Vector3())
   const up = useRef(new Vector3())
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     const cam = camRef.current
     if (!cam) return
-    const t = clock.getElapsedTime() % duration
+    const t = readLabTime() % duration
     const pose = sampleCamera(path, t)
     // 핸드헬드: 두 주파수의 사인을 섞은 결정적 흔들림
     const hx = Math.sin(t * 1.7) * 0.6 + Math.sin(t * 3.1 + 1.3) * 0.4
