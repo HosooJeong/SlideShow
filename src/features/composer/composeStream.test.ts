@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { composeStream } from './composeStream'
 import { sampleCamera } from '@/features/renderer/camera/cameraPath'
+import { distanceForHeight } from './composePaper'
 import type { StreamStage } from '@/features/renderer/types'
 
 const media = Array.from({ length: 7 }, (_, i) => ({
@@ -34,14 +35,15 @@ describe('composeStream', () => {
   })
   it('머무는 동안 카메라는 사진 앞에서 사진을 바라본다', () => {
     const s = comp.slots[2]
-    const mid = (s.kenburns.start + s.kenburns.end) / 2
+    // 창 = [도착 - 이동, 도착 + 머무름 + 이동]. 머무름 중간 = 시작 + 이동 + 머무름/2
+    const mid = s.kenburns.start + 1.15 + 1.7 / 2
     const pose = sampleCamera(comp.camera, mid)
-    expect(pose.lookX).toBeCloseTo(s.x, 0)
-    expect(pose.lookY).toBeCloseTo(s.y, 0)
+    expect(pose.lookX).toBeCloseTo(s.x, 1)
+    expect(pose.lookY).toBeCloseTo(s.y, 1)
     expect(pose.z).toBeGreaterThan(s.z)
     const dist = Math.hypot(pose.x - s.x, pose.y - s.y, pose.z - s.z)
-    expect(dist).toBeGreaterThan(1)
-    expect(dist).toBeLessThan(8)
+    const approach = distanceForHeight(s.h, 0.66)
+    expect(Math.abs(dist - approach)).toBeLessThan(0.35)
   })
   it('플래시는 영상 길이 안에 있고 오프닝 플래시가 있다', () => {
     expect(stage.flashes.some((f) => f.t === 0)).toBe(true)

@@ -86,7 +86,7 @@ export function composeStream(media: ComposeMedia[], opts: StreamOptions): Compo
 
   // 각 사진의 정면 뷰 포즈: 사진 법선 방향으로 approach만큼 떨어진 곳
   const viewPoses = slots.map((s) => {
-    const approach = distanceForHeight(s.h, 0.72)
+    const approach = distanceForHeight(s.h, 0.66)
     const yaw = s.orient![1]
     const pitch = s.orient![0]
     // 법선 = Rz Ry Rx * (0,0,1) 근사: yaw/pitch만 반영
@@ -165,7 +165,7 @@ export function composeStream(media: ComposeMedia[], opts: StreamOptions): Compo
     u = (seg + frac) / segments
     // 마지막 구간 이후는 끝점 고정
     if (tt >= segTimes[segments - 1].t1) u = 1
-    curve.getPointAt(clamp01(u), tmp)
+    curve.getPoint(clamp01(u), tmp)
 
     // 바라보는 곳: 이동 중엔 이전 사진 → 다음 사진으로 넘어가고, 머무는 동안 사진을 응시
     const prevLook = seg - 1 >= 0 && seg - 1 < n ? viewPoses[seg - 1].look : null
@@ -179,7 +179,7 @@ export function composeStream(media: ComposeMedia[], opts: StreamOptions): Compo
       roll = viewPoses[seg].roll * frac
     } else if (prevLook) {
       // 엔딩: 마지막 사진에서 시선을 앞(어둠)으로
-      const ahead = curve.getPointAt(1).add(new Vector3(0, 0, -6))
+      const ahead = curve.getPoint(1).add(new Vector3(0, 0, -6))
       lookTmp.copy(prevLook).lerp(ahead, frac)
       roll = viewPoses[seg - 1].roll * (1 - frac)
     } else {
