@@ -5,6 +5,7 @@ import { composeNewspaper } from '@/features/composer/composeNewspaper'
 import { fitTimings } from '@/features/composer/fitDuration'
 import { useMusicSync } from '@/features/audio/useMusicSync'
 import { preloadCompositionFonts } from '@/features/renderer/preloadFonts'
+import { ExportDialog } from '@/features/exporter/ExportDialog'
 import { useMediaStore } from '@/features/media/store'
 import { useProjectStore } from '@/features/project/store'
 import { SceneRenderer } from '@/features/renderer/SceneRenderer'
@@ -21,6 +22,7 @@ export function PlayerPage() {
   const [halftone, setHalftone] = useState(true)
   const [stageKind, setStageKind] = useState<'newspaper' | 'paper'>('newspaper')
   const [muted, setMuted] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     ensureProject().then((p) => {
@@ -141,7 +143,19 @@ export function PlayerPage() {
         stageKind={stageKind}
         onStageKind={setStageKind}
         music={project?.music ? { name: project.music.name, muted, onMuted: setMuted } : null}
+        onExport={() => {
+          usePlayerStore.getState().pause()
+          setExporting(true)
+        }}
       />
+      {exporting && project && composition && (
+        <ExportDialog
+          project={project}
+          composition={composition}
+          items={items}
+          onClose={() => setExporting(false)}
+        />
+      )}
     </div>
   )
 }

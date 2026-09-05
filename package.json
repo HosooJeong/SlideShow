@@ -26,12 +26,14 @@
     "heic2any": "^0.0.4",
     "idb": "^8.0.3",
     "leva": "^0.10.1",
+    "mp4-muxer": "^5.2.2",
     "postprocessing": "^6.39.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
     "three": "^0.185.1",
     "troika-three-text": "^0.52.5",
+    "webm-muxer": "^5.1.4",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
