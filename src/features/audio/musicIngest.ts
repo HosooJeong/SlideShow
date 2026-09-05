@@ -1,5 +1,6 @@
 import { putBlob } from '@/features/media/db'
 import type { ProjectMusic } from '@/features/media/types'
+import { analyzeBeats } from './beats'
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|wav|ogg|flac)$/i
 
@@ -12,6 +13,13 @@ export async function ingestMusic(file: File): Promise<ProjectMusic> {
   const duration = await readDuration(file)
   const blobKey = `music/${crypto.randomUUID()}`
   await putBlob(blobKey, file)
+  let beats: ProjectMusic['beats']
+  try {
+    beats = await analyzeBeats(file)
+  } catch {
+    beats = undefined
+  }
+  const usable = !!beats && beats.bpm > 0 && beats.confidence >= 0.15
   return {
     blobKey,
     name: file.name,
@@ -20,6 +28,8 @@ export async function ingestMusic(file: File): Promise<ProjectMusic> {
     fadeIn: 1.5,
     fadeOut: 3,
     fitDuration: true,
+    beats,
+    syncBeats: usable,
   }
 }
 

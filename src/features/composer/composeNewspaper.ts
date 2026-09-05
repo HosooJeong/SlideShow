@@ -14,6 +14,7 @@ import type {
 import { createRng, type Rng } from '@/shared/utils/seededRandom'
 import { distanceForHeight, FOV } from './composePaper'
 import { planClip } from '@/features/renderer/clip'
+import { phaseDelay, quantizeTimings, quantizeToBeat, type BeatOpts } from './beatSync'
 import { doljanchiCopy, fillCopy, type CopyPool, type CopyVars } from './copy/doljanchi'
 
 export type ComposeMedia = {
@@ -36,6 +37,8 @@ export type NewspaperOptions = {
   copy?: CopyPool
   /** 영상 클립: 최대 길이(초)와 볼륨(0 = 음소거) */
   clips?: { maxSeconds: number; volume: number }
+  /** 비트 동기: 이동+머무름을 비트 정수배로, 첫 도착을 비트 위상에 */
+  beat?: BeatOpts
 }
 
 // 페이지: 세로 3:4 신문. 무대 단위
@@ -68,8 +71,12 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     name: opts.name?.trim() || '우리 아기',
     date: opts.date || '어느 좋은 날',
   }
+  const beat = opts.beat
   const travel = opts.travel ?? 1.3
-  const dwell = opts.dwell ?? 2.4
+  const dwell = beat
+    ? quantizeTimings({ dwell: opts.dwell ?? 2.4, travel }, 60 / beat.period).dwell
+    : (opts.dwell ?? 2.4)
+  const q = (x: number) => quantizeToBeat(x, beat)
   const used = new Map<string, Set<number>>()
   const pick: Ctx['pick'] = (key) => {
     const list = copy[key] as readonly string[]
@@ -116,7 +123,9 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   })
 
   // 카메라: 오프닝(1면 전체) → 면마다 [전체 → 관심 지점들] → 마지막 면 전체
-  const opening = 1.8
+  const hold0 = beat ? q(1.4) : 1.4
+  const opening = 1.8 + phaseDelay(1.8 + hold0 + travel, beat)
+  const markers: number[] = []
   const overviewZ = distanceForHeight(PAGE_H * 1.06, 1)
   const keys: CameraKey[] = []
   const transitions: ParticleTransition[] = []
@@ -134,7 +143,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   pages.forEach((page, pi) => {
     // 면 전체 보기
     const travelStart = t
-    if (pi !== 0) t += travel * 1.2
+    if (pi !== 0) t += beat ? q(travel * 1.2) : travel * 1.2
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
     const pageArrive = t
     // 면 넘김: 앞 면의 마지막 사진이 입자로 흩어져 이 면의 첫 사진으로 모인다
@@ -157,14 +166,22 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
         fromSlot.vanish = { t0: travelStart - 0.25, duration: duration * 0.45 }
       }
     }
-    t += pi === 0 ? 1.4 : 1.0
+    t += pi === 0 ? hold0 : beat ? q(1.0) : 1.0
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
 
     for (const poi of pointsOfInterest(page)) {
       t += travel
+      markers.push(t)
       const z = distanceForHeight(poi.h, poi.fill)
       push(poi.x, poi.y, z, poi.x, poi.y, poi.roll, t)
-      t += poi.dwell ?? dwell
+      const poiDwell =
+        poi.dwell !== undefined
+          ? beat
+            ? quantizeTimings({ dwell: poi.dwell, travel }, 60 / beat.period).dwell
+            : poi.dwell
+          : dwell
+      poi.dwell = poiDwell
+      t += poiDwell
       push(poi.x + 0.06, poi.y - 0.03, z - 0.1, poi.x, poi.y, poi.roll, t)
       if (poi.slot) {
         poi.slot.appear = {
@@ -185,9 +202,9 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
         }
       }
     }
-    t += travel
+    t += beat ? q(travel) : travel
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
-    t += 0.8
+    t += beat ? q(0.8) : 0.8
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
 
     // 사진은 면 전체 보기에 도착하면 차례로 스며든다(빈 틀이 보이지 않게). 입자가 모이는 사진은 모이는 순간 나타난다
@@ -221,6 +238,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     camera: keys,
     fov: FOV,
     duration: pathDuration(keys),
+    markers,
     devices: {
       film: { grain: 0.16, vignette: 0.5, vignetteOffset: 0.25 },
       dof: { enabled: true, focusRange: 1.4, bokehScale: 3 },

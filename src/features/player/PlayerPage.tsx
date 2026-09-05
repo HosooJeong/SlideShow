@@ -4,6 +4,7 @@ import { composePaper } from '@/features/composer/composePaper'
 import { composeNewspaper } from '@/features/composer/composeNewspaper'
 import { composeStream } from '@/features/composer/composeStream'
 import { fitTimings } from '@/features/composer/fitDuration'
+import { beatOptsFrom } from '@/features/composer/beatSync'
 import { useMusicSync } from '@/features/audio/useMusicSync'
 import { preloadCompositionFonts } from '@/features/renderer/preloadFonts'
 import { ExportDialog } from '@/features/exporter/ExportDialog'
@@ -38,14 +39,15 @@ export function PlayerPage() {
       aspect: project.aspect,
       halftoneStrength: halftone ? 0.5 : 0,
     }
+    const beat = beatOptsFrom(project.music)
     if (stageKind === 'paper') return composePaper(items, base)
-    if (stageKind === 'stream') return composeStream(items, base)
+    if (stageKind === 'stream') return composeStream(items, { ...base, beat })
     const opts = {
       ...base,
       name: project.subjectName,
       date: formatKoreanDate(project.date ?? new Date().toISOString()),
     }
-    const first = composeNewspaper(items, opts)
+    const first = composeNewspaper(items, { ...opts, beat })
     // 음악 길이에 맞추기: 기본 타이밍으로 만든 길이를 기준으로 dwell/travel을 조정해 한 번 더 만든다
     if (project.music?.fitDuration && project.music.duration > 0) {
       return composeNewspaper(items, {

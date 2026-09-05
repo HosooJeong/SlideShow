@@ -50,4 +50,8 @@ export type ProjectMusic = {
   fadeOut: number
   /** 영상 길이를 음악 길이에 맞출지 */
   fitDuration: boolean
+  /** 비트 분석 결과(업로드 시 계산) */
+  beats?: { bpm: number; beats: number[]; confidence: number }
+  /** 컷을 비트에 맞출지 */
+  syncBeats?: boolean
 }

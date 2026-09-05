@@ -148,6 +148,23 @@ export function ProjectSettings({ project, onChange }: Props) {
               />
               영상 길이를 음악에 맞추기
             </label>
+            {project.music.beats && project.music.beats.bpm > 0 && (
+              <label className="flex items-center gap-2 text-xs text-neutral-400">
+                <input
+                  type="checkbox"
+                  checked={project.music.syncBeats ?? false}
+                  onChange={(e) =>
+                    onChange({ music: { ...project.music!, syncBeats: e.target.checked } })
+                  }
+                  data-testid="music-sync-beats"
+                />
+                컷을 비트에 맞추기{' '}
+                <span className="font-mono">
+                  ({Math.round(project.music.beats.bpm)} BPM
+                  {project.music.beats.confidence < 0.15 ? ' · 신뢰도 낮음' : ''})
+                </span>
+              </label>
+            )}
             <label className="flex items-center gap-2 text-xs text-neutral-400">
               볼륨
               <input
