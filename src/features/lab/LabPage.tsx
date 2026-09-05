@@ -1,11 +1,16 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
 import { labDevices } from './devices'
+import { LabTicker } from './LabTicker'
+import { LabToolbar } from './LabToolbar'
+import { useLabClock } from './labClock'
 
 export function LabPage() {
   const { device } = useParams()
   const current = labDevices.find((d) => d.id === device) ?? labDevices[0]
+  const reset = useLabClock((s) => s.reset)
+  useEffect(() => reset(), [current.id, reset])
 
   return (
     <div className="flex h-full">
@@ -35,10 +40,12 @@ export function LabPage() {
       </aside>
       <div className="relative min-w-0 flex-1 bg-black">
         <Canvas key={current.id} dpr={[1, 2]} gl={{ antialias: true, preserveDrawingBuffer: true }}>
+          <LabTicker />
           <Suspense fallback={null}>
             <current.Scene />
           </Suspense>
         </Canvas>
+        <LabToolbar />
       </div>
     </div>
   )

@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react'
 import { SmokeScene } from './scenes/SmokeScene'
 import { CameraDofScene } from './scenes/CameraDofScene'
+import { PaperHalftoneScene } from './scenes/PaperHalftoneScene'
+import { InkRevealScene } from './scenes/InkRevealScene'
 
 /**
  * 실험실 장치 레지스트리. DEVICES.md의 항목과 1:1로 대응한다.
@@ -15,5 +17,7 @@ export type LabDevice = {
 
 export const labDevices: LabDevice[] = [
   { id: 'camera-dof', title: '3D 카메라 + DOF + 필름 룩', doc: 'A1·B2', Scene: CameraDofScene },
+  { id: 'paper-halftone', title: '종이 + 하프톤 인쇄', doc: 'B3', Scene: PaperHalftoneScene },
+  { id: 'ink-reveal', title: '잉크 번짐 등장', doc: 'C1', Scene: InkRevealScene },
   { id: 'smoke', title: '렌더러 스모크 테스트', doc: '—', Scene: SmokeScene },
 ]
