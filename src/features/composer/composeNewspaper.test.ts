@@ -146,3 +146,17 @@ describe('composeNewspaper 파티클 전환', () => {
     }
   })
 })
+
+describe('composeNewspaper 페이지 컬', () => {
+  const comp = composeNewspaper(media, { seed: 7, aspect: '16:9' })
+  const stage = comp.stage as NewspaperStage
+  it('1면을 뺀 모든 면에 덮개 백지가 있고 카메라 도착 전후로 벗겨진다', () => {
+    expect(stage.sheets?.length).toBe(stage.pages.length - 1)
+    for (const sh of stage.sheets!) {
+      const page = stage.pages.find((p) => p.id === sh.pageId)!
+      expect(page).toBeDefined()
+      expect(sh.duration).toBeGreaterThan(0.5)
+      expect(sh.t0 + sh.duration).toBeLessThanOrEqual(comp.duration)
+    }
+  })
+})
