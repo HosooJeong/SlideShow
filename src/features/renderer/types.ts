@@ -39,6 +39,8 @@ export type Slot = {
   inkSeed: number
   /** 영상 클립. 켄번즈 창(start~end) 동안 재생되고, 그 밖에서는 첫 프레임에 멈춘다 */
   clip?: Clip
+  /** 3D 방향(오일러, 라디안). 있으면 rotation 대신 쓴다(스트림 무대) */
+  orient?: [number, number, number]
 }
 
 export type Clip = {
@@ -99,6 +101,24 @@ export type NewspaperStage = {
   opening: { duration: number }
 }
 
+/** 면 없는 연속 스트림: 사진들이 3D 경로 옆에 떠 있고 카메라가 사이를 날아간다 */
+export type StreamStage = {
+  kind: 'stream'
+  background: string
+  /** 안개 시작·끝 거리(카메라 기준) */
+  fog: { near: number; far: number }
+  /** 화이트 플래시 컷 */
+  flashes: { t: number; duration: number; strength: number }[]
+  /** 먼지 입자 */
+  dust: {
+    count: number
+    seed: number
+    radius: number
+    length: number
+    center: [number, number, number]
+  }
+}
+
 export type PaperStage = {
   kind: 'paper'
   width: number
@@ -117,7 +137,7 @@ export type Devices = {
 export type Composition = {
   version: 1
   seed: number
-  stage: PaperStage | NewspaperStage
+  stage: PaperStage | NewspaperStage | StreamStage
   /** 모든 슬롯(신문 무대는 페이지 슬롯을 평탄화한 것) */
   slots: Slot[]
   camera: CameraKey[]

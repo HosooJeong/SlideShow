@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { composePaper } from '@/features/composer/composePaper'
 import { composeNewspaper } from '@/features/composer/composeNewspaper'
+import { composeStream } from '@/features/composer/composeStream'
 import { fitTimings } from '@/features/composer/fitDuration'
 import { useMusicSync } from '@/features/audio/useMusicSync'
 import { preloadCompositionFonts } from '@/features/renderer/preloadFonts'
@@ -20,7 +21,7 @@ export function PlayerPage() {
   const updateProject = useProjectStore((s) => s.update)
   const { items, status, load } = useMediaStore()
   const [halftone, setHalftone] = useState(true)
-  const [stageKind, setStageKind] = useState<'newspaper' | 'paper'>('newspaper')
+  const [stageKind, setStageKind] = useState<'newspaper' | 'paper' | 'stream'>('newspaper')
   const [muted, setMuted] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -38,6 +39,7 @@ export function PlayerPage() {
       halftoneStrength: halftone ? 0.5 : 0,
     }
     if (stageKind === 'paper') return composePaper(items, base)
+    if (stageKind === 'stream') return composeStream(items, base)
     const opts = {
       ...base,
       name: project.subjectName,

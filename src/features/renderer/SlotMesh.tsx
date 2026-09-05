@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { MeshBasicMaterial, type Texture } from 'three'
+import { MeshBasicMaterial, Vector3, type Texture } from 'three'
 import { clipTime } from './clip'
 import {
   createLivingPhotoMaterial,
+  setLivingPhotoFog,
   setLivingPhotoUniforms,
 } from './devices/shaders/livingPhotoMaterial'
 import { appearProgress, kenburnsUv } from './kenburns'
@@ -11,6 +12,11 @@ import type { RenderClock } from './clock'
 import type { Devices, Slot } from './types'
 
 const BORDER = 0.06
+const tmpPos = new Vector3()
+const smoothstep = (a: number, b: number, x: number) => {
+  const u = Math.max(0, Math.min(1, (x - a) / (b - a)))
+  return u * u * (3 - 2 * u)
+}
 /** 재생 중 이 이상 어긋나면 시크로 다시 맞춘다 */
 const DRIFT = 0.25
 
@@ -20,12 +26,15 @@ export function SlotMesh({
   video,
   devices,
   clock,
+  fog,
 }: {
   slot: Slot
   texture: Texture
   video?: HTMLVideoElement
   devices: Devices
   clock: RenderClock
+  /** 거리 안개(스트림 무대). 카메라 거리로 사진을 배경색에 묻힌다 */
+  fog?: { near: number; far: number; color: string }
 }) {
   const material = useMemo(
     () =>
@@ -54,19 +63,25 @@ export function SlotMesh({
     }
   }, [video, invalidate])
 
-  useFrame(() => {
+  useFrame((state) => {
     const t = clock.read()
     const progress = appearProgress(slot.appear, t)
     const kb = kenburnsUv(slot.kenburns, slot.mediaAspect, slot.w / slot.h, t)
     setLivingPhotoUniforms(material, { ...kb, progress })
+    let fogAmount = 0
+    if (fog) {
+      const d = state.camera.position.distanceTo(tmpPos.set(slot.x, slot.y, slot.z))
+      fogAmount = smoothstep(fog.near, fog.far, d)
+      setLivingPhotoFog(material, fogAmount, fog.color)
+    }
     if (frameMat.current) {
-      frameMat.current.opacity = Math.max(0, Math.min(1, (progress - 0.15) / 0.6))
+      frameMat.current.opacity = Math.max(0, Math.min(1, (progress - 0.15) / 0.6)) * (1 - fogAmount)
     }
     if (video && slot.clip) syncVideo(video, slot, t, clock.isPlaying?.() ?? false)
   })
 
   return (
-    <group position={[slot.x, slot.y, slot.z]} rotation={[0, 0, slot.rotation]}>
+    <group position={[slot.x, slot.y, slot.z]} rotation={slot.orient ?? [0, 0, slot.rotation]}>
       {slot.frame === 'print' && (
         <mesh>
           <planeGeometry args={[slot.w + BORDER * 2, slot.h + BORDER * 2]} />

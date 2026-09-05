@@ -9,6 +9,7 @@ import { createPaperMaterial, type PaperParams } from './devices/shaders/paperMa
 import { RuleMesh } from './RuleMesh'
 import { SlotMesh } from './SlotMesh'
 import { TextBlockMesh } from './TextBlockMesh'
+import { FlashOverlay, StreamView } from './StreamView'
 import type { RenderClock } from './clock'
 import type { TextureMap, VideoMap } from './textures'
 import type { Composition, NewspaperStage, Page } from './types'
@@ -54,8 +55,20 @@ export function StageView({
   return (
     <>
       <color attach="background" args={['#0c0b0a']} />
-      <PerspectiveCamera ref={camRef} makeDefault fov={composition.fov} position={[0, 0, 12]} />
-      {stage.kind === 'paper' ? (
+      <PerspectiveCamera ref={camRef} makeDefault fov={composition.fov} position={[0, 0, 12]}>
+        {stage.kind === 'stream' && (
+          <FlashOverlay flashes={stage.flashes} fov={composition.fov} clock={clock} />
+        )}
+      </PerspectiveCamera>
+      {stage.kind === 'stream' ? (
+        <StreamView
+          stage={stage}
+          composition={composition}
+          textures={textures}
+          videos={videos}
+          clock={clock}
+        />
+      ) : stage.kind === 'paper' ? (
         <>
           <PaperMesh params={stage.paper} w={stage.width} h={stage.height} />
           {composition.slots.map((slot) => {
