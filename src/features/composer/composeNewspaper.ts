@@ -5,6 +5,7 @@ import { paperDefaults } from '@/features/renderer/devices/shaders/paperMaterial
 import type {
   Appear,
   Composition,
+  LensPass,
   Page,
   ParticleTransition,
   Rule,
@@ -129,6 +130,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   const overviewZ = distanceForHeight(PAGE_H * 1.06, 1)
   const keys: CameraKey[] = []
   const transitions: ParticleTransition[] = []
+  const lenses: LensPass[] = []
   let t = opening
   const push = (
     x: number,
@@ -174,6 +176,18 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
       markers.push(t)
       const z = distanceForHeight(poi.h, poi.fill)
       push(poi.x, poi.y, z, poi.x, poi.y, poi.roll, t)
+      if (pi === 0 && poi.lens) {
+        // 헤드라인·알림판 위를 유리 돋보기가 왼쪽에서 오른쪽으로 훑는다
+        lenses.push({
+          id: `lens-${pi}-${lenses.length}`,
+          t0: t + 0.15,
+          duration: (poi.dwell ?? dwell) - 0.3,
+          from: [poi.lens[0], poi.lens[1]],
+          to: [poi.lens[2], poi.lens[3]],
+          radius: poi.lens[4],
+          height: 0.42,
+        })
+      }
       const poiDwell =
         poi.dwell !== undefined
           ? beat
@@ -233,6 +247,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
       paper: { ...paperDefaults, baseColor: '#efe6d2', seed: opts.seed % 97 },
       opening: { duration: opening },
       transitions,
+      lenses,
     },
     slots,
     camera: keys,
@@ -264,6 +279,8 @@ type Poi = {
   roll: number
   dwell?: number
   slot?: Slot
+  /** 돋보기 경로 [x0, y0, x1, y1, radius] */
+  lens?: [number, number, number, number, number]
 }
 
 function blankPage(index: number): Page {
@@ -640,6 +657,13 @@ function pointsOfInterest(page: Page): Poi[] {
       fill: 0.9,
       roll: 0,
       dwell: 2.2,
+      lens: [
+        headline.x + 0.9,
+        headline.y - 0.35,
+        headline.x + headline.w - 0.9,
+        headline.y - 0.45,
+        0.62,
+      ],
     })
   for (const s of page.slots)
     pois.push({ x: s.x, y: s.y, h: s.h, fill: 0.7, roll: s.rotation * 0.3, slot: s })
@@ -652,6 +676,7 @@ function pointsOfInterest(page: Page): Poi[] {
       fill: 0.85,
       roll: 0.02,
       dwell: 2.4,
+      lens: [ad.x + ad.w / 2, ad.y - 0.35, ad.x + ad.w / 2, ad.y - ad.h + 0.5, 0.5],
     })
   return pois
 }

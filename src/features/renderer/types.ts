@@ -115,6 +115,20 @@ export type NewspaperStage = {
   /** 신문이 회전하며 날아와 착지하는 오프닝 길이(초). 0이면 없음 */
   opening: { duration: number }
   transitions?: ParticleTransition[]
+  /** B1 유리 돋보기가 지면 위를 미끄러지는 구간들 */
+  lenses?: LensPass[]
+}
+
+export type LensPass = {
+  id: string
+  t0: number
+  duration: number
+  /** 무대 좌표. 시작→끝을 inOutSine으로 이동하며 살짝 흔들린다 */
+  from: [number, number]
+  to: [number, number]
+  radius: number
+  /** 지면 위 높이 */
+  height: number
 }
 
 /** 면 없는 연속 스트림: 사진들이 3D 경로 옆에 떠 있고 카메라가 사이를 날아간다 */
