@@ -5,6 +5,7 @@ import { paperDefaults } from '@/features/renderer/devices/shaders/paperMaterial
 import type {
   Appear,
   Composition,
+  CurlSheet,
   LensPass,
   Page,
   ParticleTransition,
@@ -131,6 +132,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   const keys: CameraKey[] = []
   const transitions: ParticleTransition[] = []
   const lenses: LensPass[] = []
+  const sheets: CurlSheet[] = []
   let t = opening
   const push = (
     x: number,
@@ -148,6 +150,17 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     if (pi !== 0) t += beat ? q(travel * 1.2) : travel * 1.2
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
     const pageArrive = t
+    // 면 넘김: 이 면을 덮고 있던 백지가 카메라 도착에 맞춰 모서리부터 벗겨진다(페이지 컬)
+    if (pi !== 0) {
+      sheets.push({
+        id: `sheet-${pi}`,
+        pageId: page.id,
+        t0: pageArrive - 0.7,
+        duration: 1.25,
+        corner: pi % 2 === 1 ? 'tr' : 'br',
+        radius: 0.55,
+      })
+    }
     // 면 넘김: 앞 면의 마지막 사진이 입자로 흩어져 이 면의 첫 사진으로 모인다
     if (pi !== 0) {
       const prev = pages[pi - 1]
@@ -248,6 +261,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
       opening: { duration: opening },
       transitions,
       lenses,
+      sheets,
     },
     slots,
     camera: keys,

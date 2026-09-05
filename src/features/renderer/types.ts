@@ -117,6 +117,19 @@ export type NewspaperStage = {
   transitions?: ParticleTransition[]
   /** B1 유리 돋보기가 지면 위를 미끄러지는 구간들 */
   lenses?: LensPass[]
+  /** C4 페이지 컬: 다음 면을 덮은 백지가 모서리부터 말리며 벗겨진다 */
+  sheets?: CurlSheet[]
+}
+
+export type CurlSheet = {
+  id: string
+  pageId: string
+  t0: number
+  duration: number
+  /** 벗겨지기 시작하는 모서리 */
+  corner: 'tl' | 'tr' | 'bl' | 'br'
+  /** 말림 반지름(무대 단위) */
+  radius: number
 }
 
 export type LensPass = {

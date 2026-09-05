@@ -12,6 +12,7 @@ import { TextBlockMesh } from './TextBlockMesh'
 import { FlashOverlay, StreamView } from './StreamView'
 import { ParticleTransitionMesh } from './devices/ParticleTransitionMesh'
 import { GlassLens } from './devices/GlassLens'
+import { CurlSheet } from './devices/CurlSheet'
 import type { RenderClock } from './clock'
 import type { TextureMap, VideoMap } from './textures'
 import type { Composition, LensPass, NewspaperStage, Page } from './types'
@@ -191,6 +192,18 @@ function NewspaperView({
           </group>
         </group>
       )}
+      {stage.sheets?.map((sheet) => {
+        const page = stage.pages.find((p) => p.id === sheet.pageId)
+        return page ? (
+          <CurlSheet
+            key={sheet.id}
+            sheet={sheet}
+            page={page}
+            clock={clock}
+            paperColor={stage.paper.baseColor}
+          />
+        ) : null
+      })}
       {stage.lenses?.map((lens) => (
         <LensGate key={lens.id} pass={lens} clock={clock} />
       ))}
