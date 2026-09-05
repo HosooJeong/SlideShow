@@ -9,6 +9,7 @@ export function PlayerControls({
   stageKind,
   onStageKind,
   music,
+  onExport,
 }: {
   onShuffle: () => void
   onFullscreen: () => void
@@ -17,6 +18,7 @@ export function PlayerControls({
   stageKind: 'newspaper' | 'paper'
   onStageKind: (v: 'newspaper' | 'paper') => void
   music: { name: string; muted: boolean; onMuted: (v: boolean) => void } | null
+  onExport: () => void
 }) {
   const { t, duration, playing, toggle, seek } = usePlayerStore()
   return (
@@ -81,6 +83,14 @@ export function PlayerControls({
           data-testid="player-shuffle"
         >
           다시 섞기
+        </button>
+        <button
+          type="button"
+          onClick={onExport}
+          className="rounded bg-neutral-100 px-3 py-1.5 font-medium text-neutral-950 hover:bg-white"
+          data-testid="player-export"
+        >
+          MP4 내보내기
         </button>
         <button
           type="button"
