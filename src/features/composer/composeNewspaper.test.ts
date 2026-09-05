@@ -92,3 +92,32 @@ describe('composeNewspaper', () => {
     expect(all).toContain('우리 아기')
   })
 })
+
+describe('composeNewspaper 영상 클립', () => {
+  const mixed = [
+    { id: 'v1', width: 1280, height: 720, kind: 'video' as const, duration: 12 },
+    { id: 'p1', width: 1600, height: 1200 },
+    { id: 'v2', width: 720, height: 1280, kind: 'video' as const, duration: 2 },
+  ]
+  const comp = composeNewspaper(mixed, {
+    seed: 5,
+    aspect: '16:9',
+    clips: { maxSeconds: 4, volume: 0.9 },
+  })
+
+  it('영상 슬롯에만 클립이 붙는다', () => {
+    const byId = new Map(comp.slots.map((s) => [s.mediaId, s]))
+    expect(byId.get('v1')!.clip).toBeDefined()
+    expect(byId.get('p1')!.clip).toBeUndefined()
+  })
+  it('클립 길이는 최대 길이와 원본 길이를 넘지 않고 볼륨이 전달된다', () => {
+    const byId = new Map(comp.slots.map((s) => [s.mediaId, s]))
+    expect(byId.get('v1')!.clip!.duration).toBeLessThanOrEqual(4)
+    expect(byId.get('v2')!.clip!.duration).toBeLessThanOrEqual(2)
+    expect(byId.get('v1')!.clip!.volume).toBe(0.9)
+  })
+  it('클립 창은 켄번즈 창과 같다', () => {
+    const v = comp.slots.find((s) => s.mediaId === 'v1')!
+    expect(v.kenburns.end).toBeGreaterThan(v.kenburns.start)
+  })
+})

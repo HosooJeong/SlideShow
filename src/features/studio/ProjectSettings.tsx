@@ -72,6 +72,45 @@ export function ProjectSettings({ project, onChange }: Props) {
           />
         </label>
         <label className={label}>
+          영상 클립 소리
+          <select
+            className={field}
+            value={project.clips?.audio ?? 'mute'}
+            onChange={(e) =>
+              onChange({
+                clips: {
+                  maxSeconds: project.clips?.maxSeconds ?? 4,
+                  audio: e.target.value as 'mute' | 'original',
+                },
+              })
+            }
+            data-testid="set-clip-audio"
+          >
+            <option value="mute">음소거 (배경 음악만)</option>
+            <option value="original">원음 재생</option>
+          </select>
+        </label>
+        <label className={label}>
+          클립당 최대 길이 (초)
+          <input
+            type="number"
+            min={1}
+            max={15}
+            step={0.5}
+            className={field}
+            value={project.clips?.maxSeconds ?? 4}
+            onChange={(e) =>
+              onChange({
+                clips: {
+                  audio: project.clips?.audio ?? 'mute',
+                  maxSeconds: Math.max(1, Math.min(15, Number(e.target.value) || 4)),
+                },
+              })
+            }
+            data-testid="set-clip-seconds"
+          />
+        </label>
+        <label className={label}>
           화면 비율
           <select
             className={field}

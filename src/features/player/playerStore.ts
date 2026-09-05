@@ -39,6 +39,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 /** 렌더러용 시계 어댑터. t가 바뀔 때만 알린다 */
 export const playerClock: RenderClock = {
   read: () => usePlayerStore.getState().t,
+  isPlaying: () => usePlayerStore.getState().playing,
   subscribe: (cb) => {
     let prev = usePlayerStore.getState().t
     return usePlayerStore.subscribe((s) => {

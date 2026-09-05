@@ -33,6 +33,8 @@ export type Project = {
   /** 신문 문구에 쓰는 주인공 이름 */
   subjectName?: string
   music?: ProjectMusic
+  /** 영상 클립 설정 */
+  clips?: { audio: 'mute' | 'original'; maxSeconds: number }
   createdAt: number
   updatedAt: number
 }

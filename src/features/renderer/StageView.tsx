@@ -10,7 +10,7 @@ import { RuleMesh } from './RuleMesh'
 import { SlotMesh } from './SlotMesh'
 import { TextBlockMesh } from './TextBlockMesh'
 import type { RenderClock } from './clock'
-import type { TextureMap } from './textures'
+import type { TextureMap, VideoMap } from './textures'
 import type { Composition, NewspaperStage, Page } from './types'
 import { clamp01, easings } from '@/shared/utils/easing'
 
@@ -20,10 +20,12 @@ import { clamp01, easings } from '@/shared/utils/easing'
 export function StageView({
   composition,
   textures,
+  videos,
   clock,
 }: {
   composition: Composition
   textures: TextureMap
+  videos?: VideoMap
   clock: RenderClock
 }) {
   const invalidate = useThree((s) => s.invalidate)
@@ -70,7 +72,13 @@ export function StageView({
           })}
         </>
       ) : (
-        <NewspaperView stage={stage} composition={composition} textures={textures} clock={clock} />
+        <NewspaperView
+          stage={stage}
+          composition={composition}
+          textures={textures}
+          videos={videos}
+          clock={clock}
+        />
       )}
       <EffectComposer multisampling={0}>
         {devices.dof?.enabled ? (
@@ -124,11 +132,13 @@ function NewspaperView({
   stage,
   composition,
   textures,
+  videos,
   clock,
 }: {
   stage: NewspaperStage
   composition: Composition
   textures: TextureMap
+  videos?: VideoMap
   clock: RenderClock
 }) {
   const frontRef = useRef<Group>(null)
@@ -160,6 +170,7 @@ function NewspaperView({
               paper={stage.paper}
               composition={composition}
               textures={textures}
+              videos={videos}
               clock={clock}
             />
           </group>
@@ -173,6 +184,7 @@ function NewspaperView({
             paper={stage.paper}
             composition={composition}
             textures={textures}
+            videos={videos}
             clock={clock}
           />
         ))}
@@ -186,12 +198,14 @@ function PageView({
   paper,
   composition,
   textures,
+  videos,
   clock,
 }: {
   page: Page
   paper: PaperParams
   composition: Composition
   textures: TextureMap
+  videos?: VideoMap
   clock: RenderClock
 }) {
   return (
@@ -216,6 +230,7 @@ function PageView({
             key={slot.id}
             slot={slot}
             texture={texture}
+            video={videos?.get(slot.mediaId)}
             devices={composition.devices}
             clock={clock}
           />

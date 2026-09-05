@@ -5,9 +5,17 @@ import { paperDefaults } from '@/features/renderer/devices/shaders/paperMaterial
 import type { Appear, Composition, Page, Rule, Slot, TextBlock } from '@/features/renderer/types'
 import { createRng, type Rng } from '@/shared/utils/seededRandom'
 import { distanceForHeight, FOV } from './composePaper'
+import { planClip } from '@/features/renderer/clip'
 import { doljanchiCopy, fillCopy, type CopyPool, type CopyVars } from './copy/doljanchi'
 
-export type ComposeMedia = { id: string; width: number; height: number }
+export type ComposeMedia = {
+  id: string
+  width: number
+  height: number
+  kind?: 'image' | 'video'
+  /** 영상 길이(초) */
+  duration?: number
+}
 
 export type NewspaperOptions = {
   seed: number
@@ -18,6 +26,8 @@ export type NewspaperOptions = {
   travel?: number
   halftoneStrength?: number
   copy?: CopyPool
+  /** 영상 클립: 최대 길이(초)와 볼륨(0 = 음소거) */
+  clips?: { maxSeconds: number; volume: number }
 }
 
 // 페이지: 세로 3:4 신문. 무대 단위
@@ -29,6 +39,8 @@ const INK = '#2b2521'
 const INK_SOFT = '#5a514a'
 
 type Ctx = {
+  clips: { maxSeconds: number; volume: number }
+  media: Map<string, ComposeMedia>
   rng: Rng
   vars: CopyVars
   copy: CopyPool
@@ -61,7 +73,16 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     used.set(key, seen)
     return fillCopy(list[i], vars)
   }
-  const ctx: Ctx = { rng, vars, copy, travel, strength: opts.halftoneStrength ?? 0.6, pick }
+  const ctx: Ctx = {
+    rng,
+    vars,
+    copy,
+    travel,
+    strength: opts.halftoneStrength ?? 0.6,
+    pick,
+    clips: opts.clips ?? { maxSeconds: 4, volume: 0 },
+    media: new Map(media.map((m) => [m.id, m])),
+  }
 
   // 미디어를 면에 배분: 1면 1장, 이후 프리셋(1·3·3)
   const queue = media.slice()
@@ -123,6 +144,15 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
         }
         poi.slot.kenburns.start = t - (poi.dwell ?? dwell) - travel
         poi.slot.kenburns.end = t + travel
+        const m = ctx.media.get(poi.slot.mediaId)
+        if (m?.kind === 'video') {
+          poi.slot.clip = planClip({
+            sourceDuration: m.duration ?? 0,
+            windowDuration: poi.slot.kenburns.end - poi.slot.kenburns.start,
+            maxSeconds: ctx.clips.maxSeconds,
+            volume: ctx.clips.volume,
+          })
+        }
       }
     }
     t += travel

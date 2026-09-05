@@ -55,7 +55,7 @@ export function PlayerPage() {
     if (composition) void preloadCompositionFonts(composition)
   }, [composition])
   useMusicSync(project?.music, composition?.duration ?? 0, muted)
-  const { textures, loading } = useMediaTextures(items)
+  const { textures, videos, loading } = useMediaTextures(items)
 
   const setDuration = usePlayerStore((s) => s.setDuration)
   useEffect(() => {
@@ -120,7 +120,12 @@ export function PlayerPage() {
         data-testid="player-stage"
       >
         {composition && (
-          <SceneRenderer composition={composition} textures={textures} clock={playerClock} />
+          <SceneRenderer
+            composition={composition}
+            textures={textures}
+            videos={videos}
+            clock={playerClock}
+          />
         )}
         {(loading || status !== 'ready') && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-sm text-neutral-300">

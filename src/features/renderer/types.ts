@@ -37,6 +37,18 @@ export type Slot = {
   appear: Appear
   /** 잉크 번짐 시드(슬롯마다 다르게) */
   inkSeed: number
+  /** 영상 클립. 켄번즈 창(start~end) 동안 재생되고, 그 밖에서는 첫 프레임에 멈춘다 */
+  clip?: Clip
+}
+
+export type Clip = {
+  /** 원본 영상에서의 시작 위치(초) */
+  start: number
+  /** 재생 길이(초). loop면 이 길이로 반복 */
+  duration: number
+  loop: boolean
+  /** 0 = 음소거 */
+  volume: number
 }
 
 export type TextBlock = {
