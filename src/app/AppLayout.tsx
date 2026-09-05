@@ -14,6 +14,9 @@ export function AppLayout() {
           <NavLink to="/" end className={linkClass}>
             홈
           </NavLink>
+          <NavLink to="/studio" className={linkClass}>
+            스튜디오
+          </NavLink>
           <NavLink to="/lab" className={linkClass}>
             실험실
           </NavLink>

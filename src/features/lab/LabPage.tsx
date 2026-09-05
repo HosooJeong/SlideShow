@@ -34,12 +34,7 @@ export function LabPage() {
         </ul>
       </aside>
       <div className="relative min-w-0 flex-1 bg-black">
-        <Canvas
-          key={current.id}
-          dpr={[1, 2]}
-          gl={{ antialias: true, preserveDrawingBuffer: true }}
-          camera={{ position: [0, 0, 5], fov: 45 }}
-        >
+        <Canvas key={current.id} dpr={[1, 2]} gl={{ antialias: true, preserveDrawingBuffer: true }}>
           <Suspense fallback={null}>
             <current.Scene />
           </Suspense>
