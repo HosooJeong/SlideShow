@@ -1,4 +1,5 @@
 import { ShaderMaterial, Texture } from 'three'
+import { inkRevealGlsl } from './inkReveal.glsl'
 import { noiseGlsl } from './noise.glsl'
 
 export type InkRevealParams = {
@@ -58,33 +59,15 @@ export function createInkRevealMaterial(map: Texture, params: InkRevealParams) {
       uniform sampler2D uMap;
       uniform float uProgress, uScale, uFeather, uEdge, uInk, uDir, uSepia, uSeed;
       ${noiseGlsl}
+      ${inkRevealGlsl}
 
       void main() {
-        vec2 s = vec2(uSeed * 3.1, uSeed * 1.7);
-        // 번짐 필드: 노이즈 + 중심/상단 편향. 값이 낮은 곳이 먼저 드러난다.
-        float n = fbm(vUv * uScale + s, 5);
-        float radial = length(vUv - 0.5) * 1.2;
-        float topdown = vUv.y;                       // 아래(uv.y=0)가 먼저? → 위에서 아래로 번지도록 1-y
-        float bias = mix(radial, 1.0 - topdown, uDir);
-        float field = mix(n, bias, 0.45);            // 0..1
-        // progress가 커질수록 임계값이 올라가 더 넓은 영역이 드러남. 여유 범위로 끝에서 완전 공개.
-        float th = uProgress * (1.0 + uFeather + uEdge) - uFeather;
-        float reveal = smoothstep(th - uFeather, th + uFeather, field);   // 1 = 아직 안 보임
-        float alpha = 1.0 - reveal;
-        // 경계 잉크 테두리: 임계 근처 밴드
-        float band = 1.0 - smoothstep(0.0, uEdge, abs(field - th));
-        band *= step(0.001, uProgress) * step(uProgress, 0.999);
-
+        float field = inkField(vUv, uScale, uDir, uSeed);
+        vec2 m = inkMask(field, uProgress, uFeather, uEdge);
         vec3 col = texture2D(uMap, vUv).rgb;
-        // 세피아 → 컬러: 드러난 직후엔 세피아, progress 후반에 컬러로
-        float l = luma(col);
-        vec3 sepia = vec3(l) * vec3(1.05, 0.9, 0.7);
-        float colorMix = smoothstep(0.55, 1.0, uProgress);
-        col = mix(col, mix(sepia, col, colorMix), uSepia);
-        // 잉크 테두리 어둡게 + 번진 잉크의 살짝 푸른 기
-        col = mix(col, col * vec3(0.25, 0.22, 0.28), band * uInk);
-
-        gl_FragColor = vec4(col, alpha);
+        col = sepiaMix(col, uProgress, uSepia);
+        col = mix(col, col * vec3(0.25, 0.22, 0.28), m.y * uInk);
+        gl_FragColor = vec4(col, m.x);
       }
     `,
   })
