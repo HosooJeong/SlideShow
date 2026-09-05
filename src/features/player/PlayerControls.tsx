@@ -8,6 +8,7 @@ export function PlayerControls({
   onHalftone,
   stageKind,
   onStageKind,
+  music,
 }: {
   onShuffle: () => void
   onFullscreen: () => void
@@ -15,6 +16,7 @@ export function PlayerControls({
   onHalftone: (v: boolean) => void
   stageKind: 'newspaper' | 'paper'
   onStageKind: (v: 'newspaper' | 'paper') => void
+  music: { name: string; muted: boolean; onMuted: (v: boolean) => void } | null
 }) {
   const { t, duration, playing, toggle, seek } = usePlayerStore()
   return (
@@ -42,6 +44,17 @@ export function PlayerControls({
         <span className="font-mono tabular-nums text-neutral-300" data-testid="player-time">
           {formatDuration(t)} / {formatDuration(duration)}
         </span>
+        {music && (
+          <button
+            type="button"
+            onClick={() => music.onMuted(!music.muted)}
+            className="max-w-48 truncate rounded bg-neutral-800 px-2.5 py-1.5 text-neutral-300 hover:bg-neutral-700"
+            title={music.name}
+            data-testid="player-mute"
+          >
+            {music.muted ? '🔇' : '♪'} {music.name}
+          </button>
+        )}
         <span className="flex-1" />
         <select
           value={stageKind}
