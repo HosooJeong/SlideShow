@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { composePaper } from '@/features/composer/composePaper'
+import { composeNewspaper } from '@/features/composer/composeNewspaper'
 import { useMediaStore } from '@/features/media/store'
 import { useProjectStore } from '@/features/project/store'
 import { SceneRenderer } from '@/features/renderer/SceneRenderer'
@@ -15,6 +16,7 @@ export function PlayerPage() {
   const updateProject = useProjectStore((s) => s.update)
   const { items, status, load } = useMediaStore()
   const [halftone, setHalftone] = useState(true)
+  const [stageKind, setStageKind] = useState<'newspaper' | 'paper'>('newspaper')
 
   useEffect(() => {
     ensureProject().then((p) => {
@@ -22,17 +24,20 @@ export function PlayerPage() {
     })
   }, [ensureProject, load])
 
-  const composition = useMemo(
-    () =>
-      project
-        ? composePaper(items, {
-            seed: project.seed,
-            aspect: project.aspect,
-            halftoneStrength: halftone ? 0.5 : 0,
-          })
-        : null,
-    [project, items, halftone],
-  )
+  const composition = useMemo(() => {
+    if (!project) return null
+    const base = {
+      seed: project.seed,
+      aspect: project.aspect,
+      halftoneStrength: halftone ? 0.5 : 0,
+    }
+    if (stageKind === 'paper') return composePaper(items, base)
+    return composeNewspaper(items, {
+      ...base,
+      name: project.subjectName,
+      date: formatKoreanDate(project.date ?? new Date().toISOString()),
+    })
+  }, [project, items, halftone, stageKind])
   const { textures, loading } = useMediaTextures(items)
 
   const setDuration = usePlayerStore((s) => s.setDuration)
@@ -111,7 +116,15 @@ export function PlayerPage() {
         onFullscreen={fullscreen}
         halftone={halftone}
         onHalftone={setHalftone}
+        stageKind={stageKind}
+        onStageKind={setStageKind}
       />
     </div>
   )
+}
+
+function formatKoreanDate(iso: string) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
 }

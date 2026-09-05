@@ -133,7 +133,10 @@
 
 ## E. 타이포그래피
 
-### E1. SDF 텍스트 (troika-three-text) — ★ 채택(필수 인프라)
+### E1. SDF 텍스트 (troika-three-text) — ★ 채택 (실험실·렌더러 구현 2026-09-05)
+
+- **판정**: 채택. `/lab/text`와 신문 무대 `TextBlockMesh`. drei `<Text>`(troika) + 번들 폰트 Noto Serif KR(OFL) KS X 1001 서브셋 Regular/Bold 각 1.36MB(`public/fonts`). 근접 뷰에서도 활자가 선명하고 양콍 정렬·`clipRect` 박스 클리핑이 동작.
+- **관찰**: Python `euc_kr` 코덱은 확장 한글 11172자를 모두 받아 서브셋이 안 됨 → `iso2022_kr`로 2350자 추출. woff2는 troika가 못 읽으니 ttf 유지. 첫 렌더에 폰트 로드 지연이 있어 플레이어 진입 시 프리로드가 필요(TODO).
 
 - 3D 공간에서 선명한 한글 텍스트. 신문 헤드라인·기사·날짜 전부 여기로. 난이도 1(라이브러리), 한글 폰트 로딩 크기 주의(서브셋).
 

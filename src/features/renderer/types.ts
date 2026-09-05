@@ -15,7 +15,7 @@ export type KenBurns = {
 }
 
 export type Appear = {
-  kind: 'ink' | 'none'
+  kind: 'ink' | 'fade' | 'none'
   t0: number
   duration: number
 }
@@ -39,6 +39,54 @@ export type Slot = {
   inkSeed: number
 }
 
+export type TextBlock = {
+  id: string
+  text: string
+  /** 박스 좌상단(무대 좌표), 크기 */
+  x: number
+  y: number
+  w: number
+  h: number
+  fontSize: number
+  weight: 'regular' | 'bold'
+  align: 'left' | 'center' | 'right' | 'justify'
+  color: string
+  lineHeight: number
+  letterSpacing?: number
+  appear: Appear
+}
+
+/** 구분선·박스 테두리. 얇은 잉크 사각형 */
+export type Rule = {
+  id: string
+  x: number
+  y: number
+  w: number
+  h: number
+  color: string
+  appear: Appear
+}
+
+export type Page = {
+  id: string
+  /** 페이지 중심(무대 좌표), 크기 */
+  x: number
+  y: number
+  w: number
+  h: number
+  slots: Slot[]
+  texts: TextBlock[]
+  rules: Rule[]
+}
+
+export type NewspaperStage = {
+  kind: 'newspaper'
+  pages: Page[]
+  paper: PaperParams
+  /** 신문이 회전하며 날아와 착지하는 오프닝 길이(초). 0이면 없음 */
+  opening: { duration: number }
+}
+
 export type PaperStage = {
   kind: 'paper'
   width: number
@@ -57,7 +105,8 @@ export type Devices = {
 export type Composition = {
   version: 1
   seed: number
-  stage: PaperStage
+  stage: PaperStage | NewspaperStage
+  /** 모든 슬롯(신문 무대는 페이지 슬롯을 평탄화한 것) */
   slots: Slot[]
   camera: CameraKey[]
   fov: number
