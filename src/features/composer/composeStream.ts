@@ -7,6 +7,7 @@ import type { Composition, Slot, StreamStage } from '@/features/renderer/types'
 import { clamp01, easings } from '@/shared/utils/easing'
 import { createRng } from '@/shared/utils/seededRandom'
 import { distanceForHeight, FOV } from './composePaper'
+import { phaseDelay, quantizeTimings, type BeatOpts } from './beatSync'
 import type { ComposeMedia } from './composePaper'
 
 export type StreamOptions = {
@@ -15,6 +16,7 @@ export type StreamOptions = {
   dwell?: number
   travel?: number
   clips?: { maxSeconds: number; volume: number }
+  beat?: BeatOpts
 }
 
 const SPACING = 5.2 // 사진 사이 경로 거리
@@ -27,8 +29,10 @@ const SAMPLE_DT = 1 / 24 // 카메라 키 샘플 간격
  */
 export function composeStream(media: ComposeMedia[], opts: StreamOptions): Composition {
   const rng = createRng(opts.seed)
-  const dwell = opts.dwell ?? 1.7
   const travel = opts.travel ?? 1.15
+  const dwell = opts.beat
+    ? quantizeTimings({ dwell: opts.dwell ?? 1.7, travel }, 60 / opts.beat.period).dwell
+    : (opts.dwell ?? 1.7)
   const n = media.length
 
   // 경로: z 방향으로 나아가며 완만하게 굽이치는 3D 곡선
@@ -109,7 +113,8 @@ export function composeStream(media: ComposeMedia[], opts: StreamOptions): Compo
   const curve = new CatmullRomCurve3(curvePts, false, 'centripetal', 0.6)
 
   // 시간 → 곡선 파라미터. 구간 i: 정점 i에서 i+1로 travel초, 정점 도착 후 dwell초 머무름
-  const opening = 1.6
+  const opening = 1.6 + phaseDelay(1.6, opts.beat)
+  const markers: number[] = []
   const keys: CameraKey[] = []
   const flashes: StreamStage['flashes'] = []
   const segments = curvePts.length - 1
@@ -122,6 +127,7 @@ export function composeStream(media: ComposeMedia[], opts: StreamOptions): Compo
     if (i < segments - 1) {
       // 정점 i+1(사진 i) 도착 → dwell
       const arrive = t
+      markers.push(arrive)
       slots[i].kenburns.start = arrive - dur
       slots[i].kenburns.end = arrive + dwell + travel
       const m = media[i]
@@ -218,6 +224,7 @@ export function composeStream(media: ComposeMedia[], opts: StreamOptions): Compo
     camera: keys,
     fov: FOV,
     duration,
+    markers,
     devices: {
       film: { grain: 0.22, vignette: 0.6, vignetteOffset: 0.2 },
       dof: { enabled: true, focusRange: 2.2, bokehScale: 3 },

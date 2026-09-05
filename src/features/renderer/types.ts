@@ -160,4 +160,6 @@ export type Composition = {
   fov: number
   duration: number
   devices: Devices
+  /** 카메라가 관심 지점에 도착하는 시각들(비트 동기 검증·시크바 표시용) */
+  markers?: number[]
 }
