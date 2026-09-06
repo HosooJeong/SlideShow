@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { composePaper } from '@/features/composer/composePaper'
 import { composeNewspaper } from '@/features/composer/composeNewspaper'
 import { composeStream } from '@/features/composer/composeStream'
+import { composeCollage } from '@/features/composer/composeCollage'
 import { fitTimings } from '@/features/composer/fitDuration'
 import { beatOptsFrom } from '@/features/composer/beatSync'
 import { useMusicSync } from '@/features/audio/useMusicSync'
@@ -22,7 +23,9 @@ export function PlayerPage() {
   const updateProject = useProjectStore((s) => s.update)
   const { items, status, load } = useMediaStore()
   const [halftone, setHalftone] = useState(true)
-  const [stageKind, setStageKind] = useState<'newspaper' | 'paper' | 'stream'>('newspaper')
+  const [stageKind, setStageKind] = useState<'newspaper' | 'paper' | 'stream' | 'collage'>(
+    'newspaper',
+  )
   const [muted, setMuted] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -42,6 +45,7 @@ export function PlayerPage() {
     const beat = beatOptsFrom(project.music)
     if (stageKind === 'paper') return composePaper(items, base)
     if (stageKind === 'stream') return composeStream(items, { ...base, beat })
+    if (stageKind === 'collage') return composeCollage(items, { ...base, beat })
     const opts = {
       ...base,
       name: project.subjectName,
@@ -59,6 +63,8 @@ export function PlayerPage() {
   }, [project, items, halftone, stageKind])
   useEffect(() => {
     if (composition) void preloadCompositionFonts(composition)
+    // 디버그·e2e용
+    ;(globalThis as { __slideshowComposition?: unknown }).__slideshowComposition = composition
   }, [composition])
   useMusicSync(project?.music, composition?.duration ?? 0, muted)
   const { textures, videos, loading } = useMediaTextures(items)

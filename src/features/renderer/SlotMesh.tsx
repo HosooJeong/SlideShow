@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { MeshBasicMaterial, Vector3, type Texture } from 'three'
+import { Group, MeshBasicMaterial, Vector3, type Texture } from 'three'
 import { clipTime } from './clip'
 import {
   createLivingPhotoMaterial,
   setLivingPhotoFog,
+  setLivingPhotoSwap,
   setLivingPhotoUniforms,
 } from './devices/shaders/livingPhotoMaterial'
+import { itemWindow, playlistAt } from './playlist'
+import type { TextureMap } from './textures'
 import { appearProgress, kenburnsUv, vanishProgress } from './kenburns'
 import type { RenderClock } from './clock'
 import type { Devices, Slot } from './types'
@@ -27,6 +30,7 @@ export function SlotMesh({
   devices,
   clock,
   fog,
+  textures,
 }: {
   slot: Slot
   texture: Texture
@@ -35,6 +39,8 @@ export function SlotMesh({
   clock: RenderClock
   /** 거리 안개(스트림 무대). 카메라 거리로 사진을 배경색에 묻힌다 */
   fog?: { near: number; far: number; color: string }
+  /** 플레이리스트가 있는 슬롯은 여기서 항목별 텍스처를 찾는다 */
+  textures?: TextureMap
 }) {
   const material = useMemo(
     () =>
@@ -50,6 +56,7 @@ export function SlotMesh({
   useEffect(() => () => material.dispose(), [material])
 
   const frameMat = useRef<MeshBasicMaterial>(null)
+  const groupRef = useRef<Group>(null)
   const invalidate = useThree((s) => s.invalidate)
 
   // 영상: 시크가 끝나면 프레임을 다시 그린다(스크럽 모드에서 새 프레임 반영)
@@ -67,8 +74,44 @@ export function SlotMesh({
     const t = clock.read()
     const gone = vanishProgress(slot.vanish, t)
     const progress = appearProgress(slot.appear, t) * (1 - gone)
-    const kb = kenburnsUv(slot.kenburns, slot.mediaAspect, slot.w / slot.h, t)
-    setLivingPhotoUniforms(material, { ...kb, progress })
+    // 완전히 보이지 않는 슬롯은 그리지 않는다(드로우콜·정렬 문제 방지)
+    if (groupRef.current) groupRef.current.visible = progress > 0.001
+    if (progress <= 0.001) return
+    const slotAspect = slot.w / slot.h
+    if (slot.playlist && slot.playlist.length > 0 && textures) {
+      // 플레이리스트: 현재 항목(B)과 나가는 항목(A). 항목별 켄번즈 창
+      const st = playlistAt(slot.playlist, t)
+      const cur = slot.playlist[st.index]
+      const prev = st.prev >= 0 ? slot.playlist[st.prev] : cur
+      const texB = textures.get(cur.mediaId) ?? texture
+      const texA = textures.get(prev.mediaId) ?? texB
+      const wB = itemWindow(slot, st.index, slot.kenburns.end)
+      const kbB = kenburnsUv(
+        { ...slot.kenburns, start: wB.start, end: wB.end },
+        cur.mediaAspect,
+        slotAspect,
+        t,
+      )
+      const wA = st.prev >= 0 ? itemWindow(slot, st.prev, slot.kenburns.end) : wB
+      const kbA = kenburnsUv(
+        { ...slot.kenburns, start: wA.start, end: wA.end },
+        prev.mediaAspect,
+        slotAspect,
+        t,
+      )
+      setLivingPhotoUniforms(material, { ...kbA, progress })
+      setLivingPhotoSwap(material, {
+        mapA: texA,
+        mapB: texB,
+        uvB: kbB,
+        mix: st.prev >= 0 ? st.mix : 1,
+        kind: st.kind,
+        dir: st.dir,
+      })
+    } else {
+      const kb = kenburnsUv(slot.kenburns, slot.mediaAspect, slotAspect, t)
+      setLivingPhotoUniforms(material, { ...kb, progress })
+    }
     let fogAmount = 0
     if (fog) {
       const d = state.camera.position.distanceTo(tmpPos.set(slot.x, slot.y, slot.z))
@@ -82,11 +125,21 @@ export function SlotMesh({
   })
 
   return (
-    <group position={[slot.x, slot.y, slot.z]} rotation={slot.orient ?? [0, 0, slot.rotation]}>
+    <group
+      ref={groupRef}
+      position={[slot.x, slot.y, slot.z]}
+      rotation={slot.orient ?? [0, 0, slot.rotation]}
+    >
       {slot.frame === 'print' && (
         <mesh>
           <planeGeometry args={[slot.w + BORDER * 2, slot.h + BORDER * 2]} />
-          <meshBasicMaterial ref={frameMat} color="#fbf7ee" transparent opacity={0} />
+          <meshBasicMaterial
+            ref={frameMat}
+            color="#fbf7ee"
+            transparent
+            opacity={0}
+            depthWrite={false}
+          />
         </mesh>
       )}
       <mesh position={[0, 0, 0.003]} material={material}>

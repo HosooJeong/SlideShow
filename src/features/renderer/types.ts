@@ -43,6 +43,22 @@ export type Slot = {
   orient?: [number, number, number]
   /** 사라짐(파티클 분해의 출발 사진). t0부터 duration 동안 알파가 0으로 */
   vanish?: { t0: number; duration: number }
+  /** 사진 여러 장을 순서대로 갈아끼우는 플레이리스트. 있으면 mediaId는 첫 항목과 같다 */
+  playlist?: PlaylistItem[]
+}
+
+export type SwapKind = 'wipe' | 'push' | 'flip' | 'cut'
+
+export type PlaylistItem = {
+  mediaId: string
+  mediaAspect: number
+  /** 이 사진으로 바뀌기 시작하는 시각. 첫 항목은 슬롯 등장 시각 */
+  t0: number
+  /** 전환 길이(초). 첫 항목은 0 */
+  duration: number
+  kind: SwapKind
+  /** 와이프·푸시 방향(슬롯 uv 기준) */
+  dir: [number, number]
 }
 
 /** C2 파티클 분해·재조합: fromSlot의 사진이 입자로 흩어져 toSlot 자리에 모인다 */
@@ -162,6 +178,15 @@ export type StreamStage = {
   }
 }
 
+/** 콜라주 보드: 카메라가 보드에 고정되고 레이아웃이 바뀌며 슬롯 사진이 순차로 갈아끼워진다 */
+export type CollageStage = {
+  kind: 'collage'
+  width: number
+  height: number
+  paper: PaperParams
+  layouts: { t0: number; t1: number; preset: string }[]
+}
+
 export type PaperStage = {
   kind: 'paper'
   width: number
@@ -180,7 +205,7 @@ export type Devices = {
 export type Composition = {
   version: 1
   seed: number
-  stage: PaperStage | NewspaperStage | StreamStage
+  stage: PaperStage | NewspaperStage | StreamStage | CollageStage
   /** 모든 슬롯(신문 무대는 페이지 슬롯을 평탄화한 것) */
   slots: Slot[]
   camera: CameraKey[]

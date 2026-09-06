@@ -15,8 +15,8 @@ export function PlayerControls({
   onFullscreen: () => void
   halftone: boolean
   onHalftone: (v: boolean) => void
-  stageKind: 'newspaper' | 'paper' | 'stream'
-  onStageKind: (v: 'newspaper' | 'paper' | 'stream') => void
+  stageKind: 'newspaper' | 'paper' | 'stream' | 'collage'
+  onStageKind: (v: 'newspaper' | 'paper' | 'stream' | 'collage') => void
   music: { name: string; muted: boolean; onMuted: (v: boolean) => void } | null
   onExport: () => void
 }) {
@@ -60,12 +60,15 @@ export function PlayerControls({
         <span className="flex-1" />
         <select
           value={stageKind}
-          onChange={(e) => onStageKind(e.target.value as 'newspaper' | 'paper' | 'stream')}
+          onChange={(e) =>
+            onStageKind(e.target.value as 'newspaper' | 'paper' | 'stream' | 'collage')
+          }
           className="rounded bg-neutral-800 px-2 py-1.5 text-neutral-200"
           aria-label="무대"
           data-testid="player-stage-kind"
         >
           <option value="newspaper">마법 신문</option>
+          <option value="collage">콜라주 보드</option>
           <option value="stream">연속 스트림</option>
           <option value="paper">종이 위 사진</option>
         </select>
