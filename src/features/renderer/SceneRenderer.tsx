@@ -26,6 +26,7 @@ export function SceneRenderer({
       className={className}
       frameloop="demand"
       dpr={[1, 2]}
+      shadows
       gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' }}
     >
       <StageView composition={composition} textures={textures} videos={videos} clock={clock} />
