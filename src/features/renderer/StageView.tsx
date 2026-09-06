@@ -10,6 +10,7 @@ import { RuleMesh } from './RuleMesh'
 import { SlotMesh } from './SlotMesh'
 import { TextBlockMesh } from './TextBlockMesh'
 import { FlashOverlay, StreamView } from './StreamView'
+import { CollageView } from './CollageView'
 import { ParticleTransitionMesh } from './devices/ParticleTransitionMesh'
 import { GlassLens } from './devices/GlassLens'
 import { CurlSheet } from './devices/CurlSheet'
@@ -65,6 +66,14 @@ export function StageView({
       </PerspectiveCamera>
       {stage.kind === 'stream' ? (
         <StreamView
+          stage={stage}
+          composition={composition}
+          textures={textures}
+          videos={videos}
+          clock={clock}
+        />
+      ) : stage.kind === 'collage' ? (
+        <CollageView
           stage={stage}
           composition={composition}
           textures={textures}
@@ -281,6 +290,7 @@ function PageView({
             video={videos?.get(slot.mediaId)}
             devices={composition.devices}
             clock={clock}
+            textures={textures}
           />
         ) : null
       })}

@@ -16,6 +16,7 @@ import type {
 import { createRng, type Rng } from '@/shared/utils/seededRandom'
 import { distanceForHeight, FOV } from './composePaper'
 import { planClip } from '@/features/renderer/clip'
+import { scheduleSwaps } from '@/features/renderer/playlist'
 import { phaseDelay, quantizeTimings, quantizeToBeat, type BeatOpts } from './beatSync'
 import { doljanchiCopy, fillCopy, type CopyPool, type CopyVars } from './copy/doljanchi'
 
@@ -54,6 +55,7 @@ const INK_SOFT = '#5a514a'
 type Ctx = {
   clips: { maxSeconds: number; volume: number }
   media: Map<string, ComposeMedia>
+  swap: { interval: number; duration: number }
   rng: Rng
   vars: CopyVars
   copy: CopyPool
@@ -67,6 +69,7 @@ type Ctx = {
  * 페이지는 가로로 나열되고 카메라가 면을 넘어가며 훑는다. 같은 입력이면 같은 결과.
  */
 export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions): Composition {
+  extraMedia.clear()
   const rng = createRng(opts.seed)
   const copy = opts.copy ?? doljanchiCopy
   const vars: CopyVars = {
@@ -99,6 +102,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     pick,
     clips: opts.clips ?? { maxSeconds: 4, volume: 0 },
     media: new Map(media.map((m) => [m.id, m])),
+    swap: { interval: beat ? quantizeToBeat(0.9, beat) : 0.9, duration: 0.36 },
   }
 
   // 미디어를 면에 배분: 1면 1장, 이후 프리셋(1·3·3)
@@ -111,8 +115,9 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   while (queue.length > 0) {
     const options = presets.filter((p) => p !== last && presetCount(p) <= Math.max(1, queue.length))
     const preset = options.length ? rng.pick(options) : 'hero'
-    const take = Math.min(presetCount(preset), queue.length)
-    pages.push(buildPhotoPage(ctx, queue.splice(0, take), pages.length, preset))
+    // 사진 면은 슬롯 수의 2~3배를 가져가 순차 교체로 보여준다(마지막 면은 남은 것 전부)
+    const perPage = Math.min(queue.length, presetCount(preset) * (preset === 'hero' ? 3 : 2) + 1)
+    pages.push(buildPhotoPage(ctx, queue.splice(0, perPage), pages.length, preset))
     last = preset
   }
   addEnding(ctx, pages[pages.length - 1])
@@ -184,7 +189,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     t += pi === 0 ? hold0 : beat ? q(1.0) : 1.0
     push(page.x, page.y, overviewZ, page.x, page.y, 0, t)
 
-    for (const poi of pointsOfInterest(page)) {
+    for (const poi of pointsOfInterest(page, ctx.swap.interval)) {
       t += travel
       markers.push(t)
       const z = distanceForHeight(poi.h, poi.fill)
@@ -208,6 +213,44 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
             : poi.dwell
           : dwell
       poi.dwell = poiDwell
+      if (poi.block) {
+        const extras = extraMedia.get(poi.block.id) ?? []
+        const arrive = t
+        scheduleSwaps({
+          slots: poi.block.slots,
+          media: extras,
+          from: 0,
+          start: arrive,
+          end: arrive + poiDwell,
+          interval: ctx.swap.interval,
+          stagger: 0.12,
+          swapDuration: ctx.swap.duration,
+          pick: (k) => ({
+            kind: (['wipe', 'push', 'flip', 'wipe', 'cut', 'push'] as const)[(k + opts.seed) % 6],
+            dir: (
+              [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+              ] as [number, number][]
+            )[rng.int(0, 3)],
+          }),
+        })
+        for (const sl of poi.block.slots) {
+          sl.kenburns.start = arrive - travel
+          sl.kenburns.end = arrive + poiDwell + travel
+          const m = ctx.media.get(sl.mediaId)
+          if (m?.kind === 'video') {
+            sl.clip = planClip({
+              sourceDuration: m.duration ?? 0,
+              windowDuration: poiDwell + travel,
+              maxSeconds: ctx.clips.maxSeconds,
+              volume: ctx.clips.volume,
+            })
+          }
+        }
+      }
       t += poiDwell
       push(poi.x + 0.06, poi.y - 0.03, z - 0.1, poi.x, poi.y, poi.roll, t)
       if (poi.slot) {
@@ -295,6 +338,8 @@ type Poi = {
   slot?: Slot
   /** 돋보기 경로 [x0, y0, x1, y1, radius] */
   lens?: [number, number, number, number, number]
+  /** 사진 블록 POI: 이 면의 슬롯들에 플레이리스트를 배정한다 */
+  block?: Page
 }
 
 function blankPage(index: number): Page {
@@ -302,6 +347,8 @@ function blankPage(index: number): Page {
 }
 
 const none: Appear = { kind: 'none', t0: 0, duration: 0 }
+/** 사진 면이 가져간 미디어 전체(슬롯 수보다 많을 수 있음). 카메라 타이밍이 정해진 뒤 플레이리스트로 배정한다 */
+const extraMedia = new Map<string, ComposeMedia[]>()
 
 function text(
   page: Page,
@@ -496,6 +543,7 @@ function buildFrontPage(ctx: Ctx, m: ComposeMedia | undefined, index: number): P
 
 function buildPhotoPage(ctx: Ctx, items: ComposeMedia[], index: number, preset: PresetKind): Page {
   const page = blankPage(index)
+  extraMedia.set(page.id, items)
   const { pick } = ctx
   const left = -PAGE_W / 2 + MARGIN
   const innerW = PAGE_W - MARGIN * 2
@@ -660,7 +708,7 @@ function offsetPage(page: Page, dx: number, dy: number) {
 }
 
 /** 카메라가 들를 지점: 1면은 헤드라인 → 사진 → 알림판, 사진 면은 사진들 */
-function pointsOfInterest(page: Page): Poi[] {
+function pointsOfInterest(page: Page, swapInterval = 0.9): Poi[] {
   const pois: Poi[] = []
   const headline = page.texts.find((t) => t.id.endsWith('-headline'))
   if (headline)
@@ -679,8 +727,28 @@ function pointsOfInterest(page: Page): Poi[] {
         0.62,
       ],
     })
-  for (const s of page.slots)
-    pois.push({ x: s.x, y: s.y, h: s.h, fill: 0.7, roll: s.rotation * 0.3, slot: s })
+  if (page.id !== 'page-0' && page.slots.length > 0) {
+    // 사진 면: 사진 블록 전체를 한 번에 보고 슬롯들이 순차로 갈아끼워진다
+    const minX = Math.min(...page.slots.map((s) => s.x - s.w / 2))
+    const maxX = Math.max(...page.slots.map((s) => s.x + s.w / 2))
+    const minY = Math.min(...page.slots.map((s) => s.y - s.h / 2))
+    const maxY = Math.max(...page.slots.map((s) => s.y + s.h / 2))
+    const blockH = Math.max(maxY - minY, (maxX - minX) / (16 / 9)) * 1.12
+    const extras = extraMedia.get(page.id) ?? []
+    const swaps = Math.max(0, extras.length - page.slots.length)
+    pois.push({
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2,
+      h: blockH,
+      fill: 0.92,
+      roll: 0,
+      dwell: 1.6 + swaps * swapInterval,
+      block: page,
+    })
+  } else {
+    for (const s of page.slots)
+      pois.push({ x: s.x, y: s.y, h: s.h, fill: 0.7, roll: s.rotation * 0.3, slot: s })
+  }
   const ad = page.texts.find((t) => t.id.endsWith('-ad'))
   if (ad)
     pois.push({

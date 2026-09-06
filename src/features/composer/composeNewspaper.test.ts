@@ -24,9 +24,14 @@ describe('composeNewspaper', () => {
     ).toEqual(comp)
   })
 
-  it('모든 미디어가 정확히 한 슬롯에 배치된다', () => {
-    expect(comp.slots.map((s) => s.mediaId).sort()).toEqual(media.map((m) => m.id).sort())
-    expect(stage.pages.flatMap((p) => p.slots).length).toBe(media.length)
+  it('모든 미디어가 슬롯 또는 슬롯 플레이리스트에 등장한다', () => {
+    const seen = new Set(
+      comp.slots.flatMap((s) => [s.mediaId, ...(s.playlist ?? []).map((p) => p.mediaId)]),
+    )
+    for (const m of media) expect(seen.has(m.id)).toBe(true)
+    // 사진 면은 슬롯 수보다 많은 사진을 순차 교체로 보여준다
+    const photoPages = stage.pages.slice(1)
+    expect(photoPages.some((p) => p.slots.some((s) => (s.playlist?.length ?? 0) > 1))).toBe(true)
   })
 
   it('1면에는 제호·헤드라인·알림판이 있고 이름이 치환된다', () => {
@@ -114,8 +119,11 @@ describe('composeNewspaper 영상 클립', () => {
   it('클립 길이는 최대 길이와 원본 길이를 넘지 않고 볼륨이 전달된다', () => {
     const byId = new Map(comp.slots.map((s) => [s.mediaId, s]))
     expect(byId.get('v1')!.clip!.duration).toBeLessThanOrEqual(4)
-    expect(byId.get('v2')!.clip!.duration).toBeLessThanOrEqual(2)
     expect(byId.get('v1')!.clip!.volume).toBe(0.9)
+    // v2는 슬롯 첫 사진이거나 플레이리스트 항목이다(플레이리스트 항목 영상은 정지 프레임)
+    const v2Slot = byId.get('v2')
+    if (v2Slot) expect(v2Slot.clip!.duration).toBeLessThanOrEqual(2)
+    else expect(comp.slots.some((s) => s.playlist?.some((p) => p.mediaId === 'v2'))).toBe(true)
   })
   it('클립 창은 켄번즈 창과 같다', () => {
     const v = comp.slots.find((s) => s.mediaId === 'v1')!
