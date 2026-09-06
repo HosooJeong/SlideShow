@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import {
+  Bloom,
+  ChromaticAberration,
   DepthOfField,
   EffectComposer,
+  N8AO,
   Noise,
   ToneMapping,
   Vignette,
 } from '@react-three/postprocessing'
 import { BlendFunction, type DepthOfFieldEffect, ToneMappingMode } from 'postprocessing'
-import { Group, PerspectiveCamera as ThreeCamera, Vector3 } from 'three'
+import { Group, PerspectiveCamera as ThreeCamera, Vector2, Vector3 } from 'three'
 import { sampleCamera } from './camera/cameraPath'
 import { createPaperMaterial, type PaperParams } from './devices/shaders/paperMaterial'
 import { RuleMesh } from './RuleMesh'
@@ -53,14 +56,49 @@ export function StageView({
   useFrame(() => {
     const cam = camRef.current
     if (!cam) return
-    const pose = sampleCamera(composition.camera, clock.read())
+    const t = clock.read()
+    const pose = sampleCamera(composition.camera, t)
+    let roll = pose.roll
     cam.position.set(pose.x, pose.y, pose.z)
     look.current.set(pose.lookX, pose.lookY, pose.lookZ)
-    up.current.set(Math.sin(pose.roll), Math.cos(pose.roll), 0)
+    // 핸드헬드: 서로 무리수 비의 사인파 합(t의 함수, 결정적). 위치는 살짝, 시선은 더 살짝
+    const hh = composition.handheld
+    if (hh) {
+      const w = hh.freq * Math.PI * 2
+      const nx =
+        Math.sin(t * w) * 0.6 +
+        Math.sin(t * w * 1.73 + 1.3) * 0.3 +
+        Math.sin(t * w * 3.1 + 0.4) * 0.1
+      const ny =
+        Math.sin(t * w * 0.87 + 2.1) * 0.6 +
+        Math.sin(t * w * 2.21 + 0.7) * 0.3 +
+        Math.sin(t * w * 3.7) * 0.1
+      const nz = Math.sin(t * w * 0.63 + 0.9) * 0.5 + Math.sin(t * w * 1.91 + 2.6) * 0.3
+      cam.position.x += nx * hh.amp
+      cam.position.y += ny * hh.amp
+      cam.position.z += nz * hh.amp * 0.5
+      look.current.x += nx * hh.amp * 0.35
+      look.current.y += ny * hh.amp * 0.35
+      roll += Math.sin(t * w * 0.71 + 1.7) * hh.rot
+    }
+    up.current.set(Math.sin(roll), Math.cos(roll), 0)
     cam.up.copy(up.current)
     cam.lookAt(look.current)
-    if (dofRef.current) dofRef.current.target = look.current
+    const dof = dofRef.current
+    if (dof) {
+      dof.target = look.current
+      if (composition.stage.kind === 'album') {
+        // 샷별 심도
+        let shot = composition.stage.shots[0]
+        for (const sh of composition.stage.shots) if (t >= sh.t0) shot = sh
+        if (shot) {
+          dof.bokehScale = shot.dof.bokehScale
+          dof.cocMaterial.worldFocusRange = shot.dof.focusRange
+        }
+      }
+    }
   })
+  const caOffset = useMemo(() => new Vector2(0.0006, 0.0004), [])
 
   const { stage, devices } = composition
 
@@ -68,7 +106,7 @@ export function StageView({
     <>
       <color attach="background" args={['#0c0b0a']} />
       <PerspectiveCamera ref={camRef} makeDefault fov={composition.fov} position={[0, 0, 12]}>
-        {stage.kind === 'stream' && (
+        {(stage.kind === 'stream' || stage.kind === 'album') && (
           <FlashOverlay flashes={stage.flashes} fov={composition.fov} clock={clock} />
         )}
       </PerspectiveCamera>
@@ -119,6 +157,11 @@ export function StageView({
         <DecorLayer items={composition.decor} clock={clock} />
       )}
       <EffectComposer multisampling={0}>
+        {stage.kind === 'album' ? (
+          <N8AO aoRadius={0.35} intensity={2.6} distanceFalloff={0.7} quality="medium" />
+        ) : (
+          <></>
+        )}
         {devices.dof?.enabled ? (
           <DepthOfField
             ref={dofRef}
@@ -129,7 +172,17 @@ export function StageView({
         ) : (
           <></>
         )}
+        {stage.kind === 'album' ? (
+          <Bloom luminanceThreshold={0.96} luminanceSmoothing={0.2} intensity={0.16} mipmapBlur />
+        ) : (
+          <></>
+        )}
         {stage.kind === 'album' ? <ToneMapping mode={ToneMappingMode.ACES_FILMIC} /> : <></>}
+        {stage.kind === 'album' ? (
+          <ChromaticAberration offset={caOffset} radialModulation modulationOffset={0.35} />
+        ) : (
+          <></>
+        )}
         <Noise opacity={devices.film.grain} blendFunction={BlendFunction.SOFT_LIGHT} />
         <Vignette
           eskil={false}

@@ -11,6 +11,7 @@ import {
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
+  SpotLight,
   type Texture,
   Vector2,
 } from 'three'
@@ -27,7 +28,13 @@ import {
   createLeafUniforms,
   type LeafUniforms,
 } from './pageBend'
-import { makeNoiseTexture, makePageEdgeTexture } from './textures'
+import {
+  makeLinenNormal,
+  makeNoiseTexture,
+  makePageEdgeTexture,
+  makePaperNormal,
+  makeWindowGobo,
+} from './textures'
 
 const SIDE_Z = 0.0009
 const PAGE_EPS = 0.0015
@@ -47,42 +54,48 @@ export function AlbumView({
   clock: RenderClock
 }) {
   const noise = useMemo(() => makeNoiseTexture(256, composition.seed + 11, 4), [composition.seed])
-  const fabric = useMemo(() => makeNoiseTexture(256, composition.seed + 23, 5), [composition.seed])
+  const fabric = useMemo(() => makeLinenNormal(512, composition.seed + 23, 56), [composition.seed])
+  const paper = useMemo(() => makePaperNormal(512, composition.seed + 31), [composition.seed])
   const edge = useMemo(() => makePageEdgeTexture(composition.seed + 5), [composition.seed])
   useEffect(
     () => () => {
       noise?.dispose()
       fabric?.dispose()
+      paper?.dispose()
       edge?.dispose()
     },
-    [noise, fabric, edge],
+    [noise, fabric, paper, edge],
   )
   const W = stage.page.w
   return (
     <>
       <color attach="background" args={[stage.table.color]} />
-      <ambientLight intensity={0.35} color="#f6f1ea" />
-      <directionalLight
-        position={[-2.6, 2.4, 6.5]}
-        intensity={stage.light.intensity}
-        color={stage.light.key}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.00035}
-        shadow-normalBias={0.015}
-        shadow-radius={5}
-        shadow-camera-near={1}
-        shadow-camera-far={20}
-        shadow-camera-left={-(W + 2.5)}
-        shadow-camera-right={W + 2.5}
-        shadow-camera-top={W + 2}
-        shadow-camera-bottom={-(W + 2)}
-      />
-      <directionalLight position={[5, -3.5, 4]} intensity={0.55} color={stage.light.fill} />
+      <ambientLight intensity={0.14} color="#f3eee6" />
+      {stage.light.gobo ? (
+        <WindowLight color={stage.light.key} intensity={stage.light.intensity} />
+      ) : (
+        <directionalLight
+          position={[-2.6, 2.4, 6.5]}
+          intensity={stage.light.intensity * 2.2}
+          color={stage.light.key}
+          castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-bias={-0.00035}
+          shadow-normalBias={0.015}
+          shadow-camera-near={1}
+          shadow-camera-far={20}
+          shadow-camera-left={-(W + 2.5)}
+          shadow-camera-right={W + 2.5}
+          shadow-camera-top={W + 2}
+          shadow-camera-bottom={-(W + 2)}
+        />
+      )}
+      <directionalLight position={[-2.6, 2.4, 6.5]} intensity={0.3} color={stage.light.key} />
+      <directionalLight position={[5, -3.5, 4]} intensity={0.28} color={stage.light.fill} />
       <Environment resolution={128} frames={1}>
         <Lightformer
           form="rect"
-          intensity={2.2}
+          intensity={1.3}
           color="#fff6ea"
           position={[-4, 3, 7]}
           scale={[6, 4, 1]}
@@ -90,7 +103,7 @@ export function AlbumView({
         />
         <Lightformer
           form="rect"
-          intensity={0.8}
+          intensity={0.5}
           color="#e9eef7"
           position={[5, -4, 5]}
           scale={[4, 3, 1]}
@@ -98,7 +111,7 @@ export function AlbumView({
         />
         <Lightformer
           form="rect"
-          intensity={0.35}
+          intensity={0.25}
           color="#ffffff"
           position={[0, 0, -6]}
           scale={[20, 20, 1]}
@@ -112,7 +125,7 @@ export function AlbumView({
         textures={textures}
         clock={clock}
         fabric={fabric}
-        paper={noise}
+        paper={paper}
         edge={edge}
       />
       <Props stage={stage} textures={textures} />
@@ -138,18 +151,46 @@ function Table({ color, bump }: { color: string; bump: Texture | null }) {
   )
 }
 
-/** 시각 t의 책 상태: 표지 열림, 시작된 넘김 수 k, 진행 중인 넘김 진행도 p */
+/**
+ * 창가 빛: 창살 무늬(고보)를 투영하는 스포트라이트. 그림자를 드리우는 키 라이트.
+ * three의 스포트라이트 map은 castShadow가 켜져 있어야 투영된다.
+ */
+function WindowLight({ color, intensity }: { color: string; intensity: number }) {
+  const gobo = useMemo(() => makeWindowGobo(512), [])
+  const light = useMemo(() => new SpotLight(color), [color])
+  useEffect(() => () => gobo?.dispose(), [gobo])
+  useEffect(() => {
+    light.position.set(-4.2, 3.6, 8.2)
+    light.target.position.set(0.4, -0.5, 0)
+    light.angle = 0.5
+    light.penumbra = 0.42
+    light.decay = 1.2
+    light.distance = 0
+    light.intensity = intensity * 36
+    light.castShadow = true
+    light.shadow.mapSize.set(2048, 2048)
+    light.shadow.bias = -0.0003
+    light.shadow.normalBias = 0.012
+    light.shadow.camera.near = 2
+    light.shadow.camera.far = 22
+    light.shadow.camera.fov = 55
+    light.shadow.radius = 4
+    if (gobo) light.map = gobo
+  }, [light, gobo, intensity])
+  return (
+    <>
+      <primitive object={light} />
+      <primitive object={light.target} />
+    </>
+  )
+}
+
+/** 시각 t의 책 상태: 표지 열림, 보이는 스프레드 k(= 왼쪽에 넘어가 있는 잎 수). 넘김 애니메이션은 없다(컷) */
 function bookState(stage: AlbumStage, t: number) {
   const open = easings.inOutCubic(clamp01((t - stage.opening.t0) / stage.opening.duration))
   let k = 0
-  let p = 1
-  for (const tr of stage.turns) {
-    if (t >= tr.t0) {
-      k++
-      p = easings.inOutCubic(clamp01((t - tr.t0) / tr.duration))
-    }
-  }
-  return { open, k, p }
+  for (const sh of stage.shots) if (t >= sh.t0) k = sh.spread
+  return { open, k, p: 1 }
 }
 
 function Book({
@@ -191,9 +232,9 @@ function Book({
       sheenColor: '#ffffff',
     })
     if (fabric) {
-      m.bumpMap = fabric
-      m.bumpScale = 0.0012
-      fabric.repeat.set(10, 8)
+      m.normalMap = fabric
+      m.normalScale.set(0.55, 0.55)
+      fabric.repeat.set(6, 5)
     }
     return m
   }, [stage.cover.color, fabric])
@@ -245,7 +286,8 @@ function Book({
       leftBlock.current.position.z = ct + hL / 2
       leftBlock.current.visible = k >= 2 && hL > 0.001
     }
-    // 잎: 보이는 것은 k(오른쪽), k-1(넘어가는 중/왼쪽), k-2(넘김 중 아래 왼쪽)
+    // 잎: 보이는 것은 k(오른쪽 페이지, α=0)와 k-1(왼쪽 페이지, α=π). 나머지는 블록 안
+    void p
     for (let i = 0; i < L; i++) {
       const g = leafGroups.current[i]
       const u = leafUniforms[i]
@@ -259,22 +301,15 @@ function Book({
         lift = ct + (L - k) * th + PAGE_EPS
       } else if (i === k - 1) {
         visible = true
-        alpha = p * Math.PI
-        const z0 = ct + (L - k + 1) * th + PAGE_EPS
-        const z1 = ct + k * th + PAGE_EPS
-        lift = z0 + (z1 - z0) * p + 0.004 * Math.sin(p * Math.PI)
-      } else if (i === k - 2 && p < 1) {
-        visible = true
         alpha = Math.PI
-        lift = ct + (k - 1) * th + PAGE_EPS
+        lift = ct + k * th + PAGE_EPS
       }
       g.visible = visible
       u.uAlpha.value = alpha
       u.uLift.value = lift
-      // 활자는 굽히지 않으므로 넘김 중에는 숨긴다
+      // 활자는 굽히지 않고 펼쳐진 상태의 월드 좌표에 둔다(앞면: 책등 오른쪽, 뒷면: 왼쪽)
       const front = sideGroups.current.get(`${i}-front-text`)
       const back = sideGroups.current.get(`${i}-back-text`)
-      // 활자는 굽히지 않고 펼쳐진 상태의 월드 좌표에 그대로 둔다(앞면: 책등 오른쪽, 뒷면: 왼쪽)
       const textZ = lift + SIDE_Z + 0.0008
       if (front) {
         front.visible = visible && alpha < 0.02
@@ -445,8 +480,9 @@ function Leaf({
       side: FrontSide,
     })
     if (paper) {
-      m.bumpMap = paper
-      m.bumpScale = 0.0006
+      m.normalMap = paper
+      m.normalScale.set(0.18, 0.18)
+      paper.repeat.set(3, 2.4)
     }
     return m
   }, [stage.page.color, paper])

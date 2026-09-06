@@ -212,10 +212,12 @@ export type AlbumStage = {
   table: { color: string }
   /** 잎 개수 = 스프레드 개수 */
   leaves: number
-  /** 표지 열림 */
+  /** 표지 열림(첫 샷 안에서) */
   opening: { t0: number; duration: number }
-  /** 잎 넘김(잎 0..leaves-2) */
-  turns: { leaf: number; t0: number; duration: number }[]
+  /** 샷 리스트: 페이지를 넘기지 않고 컷으로 이어진다. spread = 보이는 스프레드(0 = 제목) */
+  shots: AlbumShot[]
+  /** 컷에 얹는 라이트리크 플래시 */
+  flashes: { t: number; duration: number; strength: number }[]
   /** 페이지 위 활자(제목·캡션). attach 필수 */
   texts: TextBlock[]
   /** 소품: 책 바깥 테이블 위 */
@@ -231,8 +233,20 @@ export type AlbumStage = {
       rotation: number
     }[]
   }
-  /** 조명 색(따뜻한 창가 빛) */
-  light: { key: string; fill: string; intensity: number }
+  /** 조명 색(따뜻한 창가 빛). gobo = 창문 살 무늬 스포트라이트 */
+  light: { key: string; fill: string; intensity: number; gobo: boolean }
+}
+
+export type AlbumShotKind =
+  'cover' | 'threeQuarter' | 'flatLay' | 'detail' | 'grazing' | 'pageFocus'
+
+export type AlbumShot = {
+  t0: number
+  t1: number
+  spread: number
+  kind: AlbumShotKind
+  /** 샷별 심도 */
+  dof: { focusRange: number; bokehScale: number }
 }
 
 /** 장식 스티커·테이프·컨페티. 이미지 없이 셰이더 SDF로 그린다 */
@@ -284,4 +298,6 @@ export type Composition = {
   markers?: number[]
   /** 장식 레이어 */
   decor?: DecorItem[]
+  /** 핸드헬드 미세 흔들림(위치 진폭, 회전 진폭 라디안, 기본 주파수 Hz). t의 함수 */
+  handheld?: { amp: number; rot: number; freq: number }
 }
