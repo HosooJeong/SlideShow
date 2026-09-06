@@ -45,7 +45,12 @@ export type Slot = {
   vanish?: { t0: number; duration: number }
   /** 사진 여러 장을 순서대로 갈아끼우는 플레이리스트. 있으면 mediaId는 첫 항목과 같다 */
   playlist?: PlaylistItem[]
+  /** 포토북: 어느 잎(leaf)의 어느 면에 붙어 있나. 있으면 x, y는 페이지 로컬 좌표(px: 왼쪽 가장자리→오른쪽, py: 중심 기준) */
+  attach?: LeafAttach
 }
+
+/** 포토북 잎 부착 정보. 잎 i의 앞면 = 스프레드 i 오른쪽 페이지, 뒷면 = 스프레드 i+1 왼쪽 페이지 */
+export type LeafAttach = { leaf: number; side: 'front' | 'back' }
 
 export type SwapKind = 'wipe' | 'push' | 'flip' | 'cut'
 
@@ -99,6 +104,8 @@ export type TextBlock = {
   lineHeight: number
   letterSpacing?: number
   appear: Appear
+  /** 포토북: 잎 부착(있으면 x, y는 페이지 로컬 좌표) */
+  attach?: LeafAttach
 }
 
 /** 구분선·박스 테두리. 얇은 잉크 사각형 */
@@ -191,6 +198,43 @@ export type CollageStage = {
   layouts: { t0: number; t1: number; preset: string }[]
 }
 
+/**
+ * 포토북 무대: 테이블 위 실물 레이플랫 앨범. 조명·재질·그림자가 실사처럼.
+ * 잎(leaf) 단위로 넘어간다: 잎 i 앞면 = 스프레드 i 오른쪽, 뒷면 = 스프레드 i+1 왼쪽.
+ * 책등(spine)은 x=0, 오른쪽 페이지는 x∈[0, W], 왼쪽 페이지는 x∈[-W, 0]. 테이블은 z=0 평면.
+ */
+export type AlbumStage = {
+  kind: 'album'
+  /** 페이지 한 장 크기와 잎 두께(월드 단위) */
+  page: { w: number; h: number; thickness: number; color: string }
+  /** 표지: 색, 판 두께, 페이지보다 튀어나온 여백 */
+  cover: { color: string; thickness: number; overhang: number; title?: string }
+  table: { color: string }
+  /** 잎 개수 = 스프레드 개수 */
+  leaves: number
+  /** 표지 열림 */
+  opening: { t0: number; duration: number }
+  /** 잎 넘김(잎 0..leaves-2) */
+  turns: { leaf: number; t0: number; duration: number }[]
+  /** 페이지 위 활자(제목·캡션). attach 필수 */
+  texts: TextBlock[]
+  /** 소품: 책 바깥 테이블 위 */
+  props: {
+    cup?: { x: number; y: number; rotation: number }
+    prints: {
+      mediaId: string
+      mediaAspect: number
+      x: number
+      y: number
+      w: number
+      h: number
+      rotation: number
+    }[]
+  }
+  /** 조명 색(따뜻한 창가 빛) */
+  light: { key: string; fill: string; intensity: number }
+}
+
 /** 장식 스티커·테이프·컨페티. 이미지 없이 셰이더 SDF로 그린다 */
 export type DecorShape = 'circle' | 'heart' | 'star' | 'sparkle' | 'tape' | 'ring'
 export type DecorItem = {
@@ -229,7 +273,7 @@ export type Devices = {
 export type Composition = {
   version: 1
   seed: number
-  stage: PaperStage | NewspaperStage | StreamStage | CollageStage
+  stage: PaperStage | NewspaperStage | StreamStage | CollageStage | AlbumStage
   /** 모든 슬롯(신문 무대는 페이지 슬롯을 평탄화한 것) */
   slots: Slot[]
   camera: CameraKey[]

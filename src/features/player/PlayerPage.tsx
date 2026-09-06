@@ -6,6 +6,8 @@ import { composeStream } from '@/features/composer/composeStream'
 import { composeCollage } from '@/features/composer/composeCollage'
 import { fitTimings } from '@/features/composer/fitDuration'
 import { beatOptsFrom } from '@/features/composer/beatSync'
+import { composeAlbum } from '@/features/composer/composeAlbum'
+import type { StageKind } from './PlayerControls'
 import { useMusicSync } from '@/features/audio/useMusicSync'
 import { preloadCompositionFonts } from '@/features/renderer/preloadFonts'
 import { ExportDialog } from '@/features/exporter/ExportDialog'
@@ -23,9 +25,7 @@ export function PlayerPage() {
   const updateProject = useProjectStore((s) => s.update)
   const { items, status, load } = useMediaStore()
   const [halftone, setHalftone] = useState(true)
-  const [stageKind, setStageKind] = useState<'newspaper' | 'paper' | 'stream' | 'collage'>(
-    'newspaper',
-  )
+  const [stageKind, setStageKind] = useState<StageKind>('album')
   const [muted, setMuted] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -46,6 +46,13 @@ export function PlayerPage() {
     }
     const beat = beatOptsFrom(project.music)
     if (stageKind === 'paper') return composePaper(items, base)
+    if (stageKind === 'album')
+      return composeAlbum(items, {
+        ...base,
+        beat,
+        name: project.subjectName,
+        date: formatKoreanDate(project.date ?? new Date().toISOString()),
+      })
     if (stageKind === 'stream') return composeStream(items, { ...base, beat })
     if (stageKind === 'collage') return composeCollage(items, { ...base, beat })
     const opts = {

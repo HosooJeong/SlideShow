@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
-import { DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
-import { BlendFunction, type DepthOfFieldEffect } from 'postprocessing'
+import {
+  DepthOfField,
+  EffectComposer,
+  Noise,
+  ToneMapping,
+  Vignette,
+} from '@react-three/postprocessing'
+import { BlendFunction, type DepthOfFieldEffect, ToneMappingMode } from 'postprocessing'
 import { Group, PerspectiveCamera as ThreeCamera, Vector3 } from 'three'
 import { sampleCamera } from './camera/cameraPath'
 import { createPaperMaterial, type PaperParams } from './devices/shaders/paperMaterial'
@@ -11,6 +17,7 @@ import { SlotMesh } from './SlotMesh'
 import { TextBlockMesh } from './TextBlockMesh'
 import { FlashOverlay, StreamView } from './StreamView'
 import { CollageView } from './CollageView'
+import { AlbumView } from './album/AlbumView'
 import { ParticleTransitionMesh } from './devices/ParticleTransitionMesh'
 import { GlassLens } from './devices/GlassLens'
 import { CurlSheet } from './devices/CurlSheet'
@@ -81,6 +88,8 @@ export function StageView({
           videos={videos}
           clock={clock}
         />
+      ) : stage.kind === 'album' ? (
+        <AlbumView stage={stage} composition={composition} textures={textures} clock={clock} />
       ) : stage.kind === 'paper' ? (
         <>
           <PaperMesh params={stage.paper} w={stage.width} h={stage.height} />
@@ -120,6 +129,7 @@ export function StageView({
         ) : (
           <></>
         )}
+        {stage.kind === 'album' ? <ToneMapping mode={ToneMappingMode.ACES_FILMIC} /> : <></>}
         <Noise opacity={devices.film.grain} blendFunction={BlendFunction.SOFT_LIGHT} />
         <Vignette
           eskil={false}

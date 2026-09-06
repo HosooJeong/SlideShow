@@ -62,6 +62,7 @@ export function ExportRenderer({
       <Canvas
         frameloop="never"
         dpr={1}
+        shadows
         gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' }}
         onCreated={setState}
       >
