@@ -273,12 +273,13 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
 
   /** 구도 프리셋. side = ±1(카메라가 어느 쪽에서 보나) */
   const threeQuarter = (side: number): ShotPlan => {
-    const pos: Vec3 = [side * 1.15, -3.75, 3.85]
-    const look: Vec3 = [side * 0.25, -0.05, zPage]
+    // 틸트 약 23°: 사진이 사다리꼴로 보이지 않게 위에서 내려본다
+    const pos: Vec3 = [side * 0.9, -2.05, 4.75]
+    const look: Vec3 = [side * 0.2, -0.05, zPage]
     return {
       kind: 'threeQuarter',
       from: { pos, look },
-      to: { pos: [pos[0] - side * 0.22, pos[1] + 0.28, pos[2] - 0.22], look },
+      to: { pos: [pos[0] - side * 0.2, pos[1] + 0.15, pos[2] - 0.28], look },
       dof: { focusRange: 1.7, bokehScale: 2.2 },
       dur: q(base),
     }
@@ -296,8 +297,9 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
   const detail = (s: Slot): ShotPlan => {
     const c = worldOf(s)
     const d = distanceForHeight(Math.max(s.h, s.w / 1.6) * 1.15, 0.78)
-    const tilt = rng.range(0.42, 0.62)
-    const dx = rng.range(-0.3, 0.3)
+    // 디테일은 거의 정면(3~10°). 입체감은 심도로만
+    const tilt = rng.range(0.05, 0.18)
+    const dx = rng.range(-0.2, 0.2)
     const pos: Vec3 = [c[0] + dx, c[1] - d * Math.sin(tilt), c[2] + d * Math.cos(tilt)]
     const slide = rng.range(-0.2, 0.2)
     return {
@@ -311,20 +313,10 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
       dur: q(base * 0.85),
     }
   }
-  const grazing = (side: number): ShotPlan => {
-    const pos: Vec3 = [side * 4.4, -3.7, 2.5]
-    const look: Vec3 = [-side * 0.7, 0.2, zPage]
-    return {
-      kind: 'grazing',
-      from: { pos, look },
-      to: { pos: [pos[0] - side * 0.4, pos[1] + 0.3, pos[2] + 0.05], look },
-      dof: { focusRange: 1.4, bokehScale: 2.8 },
-      dur: q(base * 0.9),
-    }
-  }
   const pageFocus = (page: number): ShotPlan => {
     // page = -1 왼쪽, +1 오른쪽. 반대편에서 살짝 비스듬히
-    const pos: Vec3 = [-page * 0.4 + page * 1.9, -2.7, 3.15]
+    // 틸트 약 22°
+    const pos: Vec3 = [page * 1.3, -1.5, 3.7]
     const look: Vec3 = [page * 1.45, -0.05, zPage]
     return {
       kind: 'pageFocus',
@@ -338,7 +330,7 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
   // 샷 0: 닫힌 책 → 표지 열림 → 3/4 뷰로 이어지는 한 샷(컷 없음)
   const openT0 = q(0.9 * pace)
   const openDur = 1.7
-  const closedPos: Vec3 = [PAGE_W * 0.5 + 2.4, -3.6, 3.3]
+  const closedPos: Vec3 = [PAGE_W * 0.5 + 2.0, -2.3, 4.3]
   const closedLook: Vec3 = [PAGE_W * 0.5, 0, 0.15]
   key(0, closedPos, closedLook)
   key(openT0, [closedPos[0] - 0.15, closedPos[1] + 0.1, closedPos[2] + 0.05], closedLook)
@@ -366,7 +358,7 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
     // 스프레드마다 도입 1 + 디테일 1~2 + 마무리 1
     const intro: ShotPlan =
       rng.next() < 0.6 ? threeQuarter(side) : pageFocus(sp.left.slots.length ? -1 : 1)
-    const outro: ShotPlan = rng.next() < 0.5 ? flatLay() : grazing(-side)
+    const outro: ShotPlan = rng.next() < 0.6 ? flatLay() : threeQuarter(-side)
     const plan: ShotPlan[] = [intro, ...picks.map((s) => detail(s)), outro]
     plan.forEach((sh, j) => {
       const isCut = true
