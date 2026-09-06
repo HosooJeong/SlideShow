@@ -8,8 +8,10 @@ import { createRng } from '@/shared/utils/seededRandom'
 import { phaseDelay, quantizeToBeat, type BeatOpts } from './beatSync'
 import { distanceForHeight, FOV, stageSize, type ComposeMedia } from './composePaper'
 import { confetti, slotStickers } from './decor'
+import { arrow, caption, circleAround, doodle, HAND_PHRASES, resetPenIds } from './pen'
+import { DOODLE_SETS } from './doodles'
 import { PACE_SCALE, paletteFor } from '@/features/themes/palette'
-import type { DecorItem } from '@/features/renderer/types'
+import type { DecorItem, HandText, PenStroke } from '@/features/renderer/types'
 import type { Project } from '@/features/media/types'
 
 export type CollageOptions = {
@@ -91,6 +93,14 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
   const hold = beat ? quantizeToBeat((opts.hold ?? 10) * pace, beat) : (opts.hold ?? 10) * pace
   const swapDuration = Math.min(0.42, interval * 0.35)
   const decor: DecorItem[] = []
+  resetPenIds()
+  const strokes: PenStroke[] = []
+  const texts: HandText[] = []
+  const themeKey = opts.theme ?? 'doljanchi'
+  const phrases = HAND_PHRASES[themeKey] ?? HAND_PHRASES.doljanchi
+  const icons = DOODLE_SETS[themeKey] ?? DOODLE_SETS.doljanchi
+  let phraseIdx = rng.int(0, phrases.length - 1)
+  const PEN_Z = 0.08
   const margin = Math.min(W, H) * 0.09
   const gutter = Math.min(W, H) * 0.045
   const boardW = W - margin * 2
@@ -182,6 +192,93 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
       }),
     )
 
+    // 펜 레이어: 여백 띠에 손글씨 캡션(형광펜 강조) + 마카 낙서 2~3개, 가끔 사진 둘레 동그라미·화살표
+    {
+      const penEnd = t1 - 0.12
+      const bandY = H / 2 - margin * 0.5
+      const bandX = W / 2 - margin * 1.1
+      const corners: { x: number; y: number; align: HandText['align'] }[] = [
+        { x: -bandX, y: -bandY, align: 'left' },
+        { x: bandX, y: bandY, align: 'right' },
+        { x: bandX, y: -bandY, align: 'right' },
+        { x: -bandX, y: bandY, align: 'left' },
+      ]
+      const order = rng.shuffle([0, 1, 2, 3])
+      const cap = corners[order[0]]
+      const phrase = phrases[phraseIdx % phrases.length]
+      phraseIdx++
+      const inkColor = palette.ink
+      const c = caption(phrase, cap.x, cap.y, {
+        fontSize: Math.min(W, H) * 0.074,
+        color: inkColor,
+        rotation: rng.range(-0.06, 0.06),
+        align: cap.align,
+        z: PEN_Z,
+        t0: t0 + 0.5,
+        t1: penEnd,
+        highlighter: rng.next() < 0.65 ? { color: rng.pick(palette.highlighters), rng } : undefined,
+      })
+      texts.push(c.text)
+      strokes.push(...c.strokes)
+      // 낙서: 나머지 모서리 중 2~3곳
+      const count = rng.int(2, 3)
+      let tDraw = t0 + 0.9
+      for (let k = 1; k <= count; k++) {
+        const corner = corners[order[k]]
+        const size = Math.min(W, H) * rng.range(0.085, 0.115)
+        const ix = corner.x + (corner.align === 'left' ? size * 0.6 : -size * 0.6)
+        strokes.push(
+          ...doodle(rng.pick(icons), ix, corner.y, size, rng.range(-0.3, 0.3), rng, {
+            color: rng.pick(palette.markers),
+            width: 0.065,
+            z: PEN_Z,
+            t0: tDraw,
+            duration: 0.7,
+            t1: penEnd,
+          }),
+        )
+        tDraw += 0.45
+      }
+      // 사진 둘레 동그라미(가끔, 작은 사진에만: 큰 사진은 원이 화면을 벗어난다)
+      const small = layoutSlots.filter((sl) => sl.w < W * 0.45 && sl.h < H * 0.55)
+      if (small.length > 0 && rng.next() < 0.35) {
+        const sl = rng.pick(small)
+        strokes.push(
+          circleAround(sl.x, sl.y, sl.w, sl.h, rng, {
+            color: rng.pick(palette.markers),
+            width: 0.07,
+            z: PEN_Z,
+            t0: tDraw + 0.2,
+            duration: 0.9,
+            t1: penEnd,
+          }),
+        )
+      } else if (layoutSlots.length > 0 && rng.next() < 0.45) {
+        // 캡션에서 가까운 사진으로 화살표
+        const sl = layoutSlots.reduce((a, b) =>
+          Math.hypot(a.x - cap.x, a.y - cap.y) < Math.hypot(b.x - cap.x, b.y - cap.y) ? a : b,
+        )
+        const from: [number, number] = [
+          cap.x + (cap.align === 'left' ? 1.2 : -1.2),
+          cap.y + (cap.y < 0 ? 0.35 : -0.35),
+        ]
+        const to: [number, number] = [
+          sl.x + (from[0] < sl.x ? -sl.w / 2 - 0.15 : sl.w / 2 + 0.15),
+          sl.y + (from[1] < sl.y ? -sl.h / 2 - 0.15 : sl.h / 2 + 0.15),
+        ]
+        strokes.push(
+          ...arrow(from, to, rng, {
+            color: rng.pick(palette.markers),
+            width: 0.055,
+            z: PEN_Z,
+            t0: tDraw + 0.2,
+            duration: 0.7,
+            t1: penEnd,
+          }),
+        )
+      }
+    }
+
     // 카메라: 레이아웃 동안 살짝 밀어 들어가고 드리프트, 레이아웃 전환 때 원위치
     const dx = rng.range(-0.15, 0.15)
     const dy = rng.range(-0.1, 0.1)
@@ -234,6 +331,7 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
     },
     slots,
     decor,
+    pen: { strokes, texts },
     camera: keys,
     fov: FOV,
     duration,

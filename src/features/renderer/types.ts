@@ -300,4 +300,39 @@ export type Composition = {
   decor?: DecorItem[]
   /** 핸드헬드 미세 흔들림(위치 진폭, 회전 진폭 라디안, 기본 주파수 Hz). t의 함수 */
   handheld?: { amp: number; rot: number; freq: number }
+  /** 펜 레이어: 마카 낙서·형광펜·손글씨 */
+  pen?: PenLayerData
 }
+
+/** 펜 스트로크. 무대 좌표 폴리라인을 렌더러가 스무딩·리본화해서 t0부터 duration 동안 그려 나간다 */
+export type PenStroke = {
+  id: string
+  kind: 'marker' | 'highlighter'
+  points: [number, number][]
+  width: number
+  color: string
+  opacity: number
+  z: number
+  t0: number
+  duration: number
+  /** 이 시각 이후 숨김(레이아웃 끝) */
+  t1?: number
+}
+
+/** 손글씨(사인펜). 글자 단위로 쓰는 방향을 따라 드러난다 */
+export type HandText = {
+  id: string
+  text: string
+  x: number
+  y: number
+  z: number
+  fontSize: number
+  color: string
+  rotation: number
+  align: 'left' | 'center' | 'right'
+  t0: number
+  duration: number
+  t1?: number
+}
+
+export type PenLayerData = { strokes: PenStroke[]; texts: HandText[] }

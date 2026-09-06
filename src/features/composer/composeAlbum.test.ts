@@ -61,6 +61,17 @@ describe('composeAlbum', () => {
     expect(comp.camera[comp.camera.length - 1].t).toBeCloseTo(comp.duration)
     for (const k of comp.camera) expect(k.z).toBeGreaterThan(0.5)
   })
+  it('사진 샷의 카메라 틸트는 30° 이하다(사진이 사다리꼴로 보이지 않게)', () => {
+    const afterCover = stage.shots[1].t0
+    for (const k of comp.camera) {
+      if (k.t < afterCover) continue
+      const dx = k.lookX - k.x
+      const dy = k.lookY - k.y
+      const dz = k.lookZ - k.z
+      const tilt = Math.atan2(Math.hypot(dx, dy), -dz) * (180 / Math.PI)
+      expect(tilt).toBeLessThanOrEqual(30)
+    }
+  })
   it('속도 느리게면 더 길다', () => {
     const slow = composeAlbum(media, { seed: 7, aspect: '16:9', pace: 'slow' })
     expect(slow.duration).toBeGreaterThan(comp.duration)

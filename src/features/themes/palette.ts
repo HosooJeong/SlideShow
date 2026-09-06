@@ -14,6 +14,10 @@ export type Palette = {
   paper: string
   /** 스트림 무대 배경·먼지 */
   stream: { background: string; dust: string[] }
+  /** 펜 레이어: 사인펜 잉크, 마카 색, 형광펜 색 */
+  ink: string
+  markers: string[]
+  highlighters: string[]
 }
 
 export const PALETTES: Record<Project['theme'], Palette> = {
@@ -24,6 +28,9 @@ export const PALETTES: Record<Project['theme'], Palette> = {
     frame: '#ffffff',
     paper: '#f8f1e6',
     stream: { background: '#1c1733', dust: ['#ffd6e7', '#fff1b8', '#c7f9ff', '#e2d6ff'] },
+    ink: '#2f2a26',
+    markers: ['#ff6b8a', '#ffb020', '#3cb371', '#3aa0ff', '#b56cff'],
+    highlighters: ['#fff36b', '#ffc2e0', '#b8f1ff', '#d2ffb8'],
   },
   birthday: {
     background: ['#fff0f6', '#fff8d6'],
@@ -32,6 +39,9 @@ export const PALETTES: Record<Project['theme'], Palette> = {
     frame: '#ffffff',
     paper: '#fbf4ea',
     stream: { background: '#1a1a2e', dust: ['#ffd166', '#ff8fab', '#4cc9f0', '#b388eb'] },
+    ink: '#26233a',
+    markers: ['#ff4d6d', '#ffb703', '#06d6a0', '#3a86ff', '#8338ec'],
+    highlighters: ['#fff36b', '#ffb3d9', '#b3f0ff'],
   },
   wedding: {
     background: ['#fbf7f2', '#f1ece6'],
@@ -40,6 +50,9 @@ export const PALETTES: Record<Project['theme'], Palette> = {
     frame: '#fffaf5',
     paper: '#f7f1e8',
     stream: { background: '#171417', dust: ['#f3e9dc', '#e8c1c5', '#d4b483'] },
+    ink: '#3b3330',
+    markers: ['#c98b8b', '#b8a06a', '#8ea88a', '#8a9db3'],
+    highlighters: ['#f6ead0', '#f1d7d7'],
   },
   travel: {
     background: ['#eaf6ff', '#fff6e0'],
@@ -48,6 +61,9 @@ export const PALETTES: Record<Project['theme'], Palette> = {
     frame: '#ffffff',
     paper: '#f4efe4',
     stream: { background: '#101820', dust: ['#ffca3a', '#48bfe3', '#ffffff'] },
+    ink: '#1f2a33',
+    markers: ['#ff7a45', '#2ec4b6', '#ffbf47', '#4361ee'],
+    highlighters: ['#fff36b', '#c6f1d6', '#bde0fe'],
   },
 }
 
