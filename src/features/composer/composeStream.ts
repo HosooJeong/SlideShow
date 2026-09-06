@@ -8,6 +8,8 @@ import { clamp01, easings } from '@/shared/utils/easing'
 import { createRng } from '@/shared/utils/seededRandom'
 import { distanceForHeight, FOV } from './composePaper'
 import { phaseDelay, quantizeTimings, type BeatOpts } from './beatSync'
+import { PACE_SCALE, paletteFor } from '@/features/themes/palette'
+import type { Project } from '@/features/media/types'
 import type { ComposeMedia } from './composePaper'
 
 export type StreamOptions = {
@@ -17,10 +19,11 @@ export type StreamOptions = {
   travel?: number
   clips?: { maxSeconds: number; volume: number }
   beat?: BeatOpts
+  theme?: Project['theme']
+  pace?: Project['pace']
 }
 
 const SPACING = 5.2 // 사진 사이 경로 거리
-const BACKGROUND = '#0d0b0a'
 const SAMPLE_DT = 1 / 24 // 카메라 키 샘플 간격
 
 /**
@@ -29,10 +32,13 @@ const SAMPLE_DT = 1 / 24 // 카메라 키 샘플 간격
  */
 export function composeStream(media: ComposeMedia[], opts: StreamOptions): Composition {
   const rng = createRng(opts.seed)
-  const travel = opts.travel ?? 1.15
+  const pace = PACE_SCALE[opts.pace ?? 'normal']
+  const palette = paletteFor(opts.theme)
+  const travel = (opts.travel ?? 1.3) * Math.sqrt(pace)
+  const baseDwell = (opts.dwell ?? 2.3) * pace
   const dwell = opts.beat
-    ? quantizeTimings({ dwell: opts.dwell ?? 1.7, travel }, 60 / opts.beat.period).dwell
-    : (opts.dwell ?? 1.7)
+    ? quantizeTimings({ dwell: baseDwell, travel }, 60 / opts.beat.period).dwell
+    : baseDwell
   const n = media.length
 
   // 경로: z 방향으로 나아가며 완만하게 굽이치는 3D 곡선
@@ -215,10 +221,17 @@ export function composeStream(media: ComposeMedia[], opts: StreamOptions): Compo
     seed: opts.seed,
     stage: {
       kind: 'stream',
-      background: BACKGROUND,
+      background: palette.stream.background,
       fog: { near: 6, far: 26 },
       flashes,
-      dust: { count: 900, seed: opts.seed % 1000, radius: 7, length: n * SPACING + 30, center },
+      dust: {
+        count: 900,
+        seed: opts.seed % 1000,
+        radius: 7,
+        length: n * SPACING + 30,
+        center,
+        colors: palette.stream.dust,
+      },
     },
     slots,
     camera: keys,

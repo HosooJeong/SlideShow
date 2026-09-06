@@ -15,6 +15,9 @@ import type { RenderClock } from './clock'
 import type { Devices, Slot } from './types'
 
 const BORDER = 0.06
+/** 폴라로이드: 두꺼운 흰 테두리 + 아래쪽 여백 */
+const POLAROID = 0.12
+const POLAROID_BOTTOM = 0.36
 const tmpPos = new Vector3()
 const smoothstep = (a: number, b: number, x: number) => {
   const u = Math.max(0, Math.min(1, (x - a) / (b - a)))
@@ -136,6 +139,18 @@ export function SlotMesh({
           <meshBasicMaterial
             ref={frameMat}
             color="#fbf7ee"
+            transparent
+            opacity={0}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+      {slot.frame === 'polaroid' && (
+        <mesh position={[0, -(POLAROID_BOTTOM - POLAROID) / 2, 0]}>
+          <planeGeometry args={[slot.w + POLAROID * 2, slot.h + POLAROID + POLAROID_BOTTOM]} />
+          <meshBasicMaterial
+            ref={frameMat}
+            color="#ffffff"
             transparent
             opacity={0}
             depthWrite={false}

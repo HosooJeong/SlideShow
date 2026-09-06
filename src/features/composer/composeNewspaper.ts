@@ -17,6 +17,10 @@ import { createRng, type Rng } from '@/shared/utils/seededRandom'
 import { distanceForHeight, FOV } from './composePaper'
 import { planClip } from '@/features/renderer/clip'
 import { scheduleSwaps } from '@/features/renderer/playlist'
+import { slotStickers } from './decor'
+import { PACE_SCALE, paletteFor } from '@/features/themes/palette'
+import type { DecorItem } from '@/features/renderer/types'
+import type { Project } from '@/features/media/types'
 import { phaseDelay, quantizeTimings, quantizeToBeat, type BeatOpts } from './beatSync'
 import { doljanchiCopy, fillCopy, type CopyPool, type CopyVars } from './copy/doljanchi'
 
@@ -42,6 +46,8 @@ export type NewspaperOptions = {
   clips?: { maxSeconds: number; volume: number }
   /** 비트 동기: 이동+머무름을 비트 정수배로, 첫 도착을 비트 위상에 */
   beat?: BeatOpts
+  theme?: Project['theme']
+  pace?: Project['pace']
 }
 
 // 페이지: 세로 3:4 신문. 무대 단위
@@ -53,6 +59,7 @@ const INK = '#2b2521'
 const INK_SOFT = '#5a514a'
 
 type Ctx = {
+  pace: number
   clips: { maxSeconds: number; volume: number }
   media: Map<string, ComposeMedia>
   swap: { interval: number; duration: number }
@@ -77,10 +84,13 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     date: opts.date || '어느 좋은 날',
   }
   const beat = opts.beat
+  const pace = PACE_SCALE[opts.pace ?? 'normal']
+  const palette = paletteFor(opts.theme)
   const travel = opts.travel ?? 1.3
+  const baseDwell = (opts.dwell ?? 3.0) * pace
   const dwell = beat
-    ? quantizeTimings({ dwell: opts.dwell ?? 2.4, travel }, 60 / beat.period).dwell
-    : (opts.dwell ?? 2.4)
+    ? quantizeTimings({ dwell: baseDwell, travel }, 60 / beat.period).dwell
+    : baseDwell
   const q = (x: number) => quantizeToBeat(x, beat)
   const used = new Map<string, Set<number>>()
   const pick: Ctx['pick'] = (key) => {
@@ -98,11 +108,12 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     vars,
     copy,
     travel,
-    strength: opts.halftoneStrength ?? 0.6,
+    strength: opts.halftoneStrength ?? 0.35,
     pick,
     clips: opts.clips ?? { maxSeconds: 4, volume: 0 },
     media: new Map(media.map((m) => [m.id, m])),
-    swap: { interval: beat ? quantizeToBeat(0.9, beat) : 0.9, duration: 0.36 },
+    swap: { interval: beat ? quantizeToBeat(1.5 * pace, beat) : 1.5 * pace, duration: 0.4 },
+    pace,
   }
 
   // 미디어를 면에 배분: 1면 1장, 이후 프리셋(1·3·3)
@@ -206,11 +217,12 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
           height: 0.42,
         })
       }
+      const scaled = poi.dwell !== undefined ? poi.dwell * (poi.block ? 1 : ctx.pace) : undefined
       const poiDwell =
-        poi.dwell !== undefined
+        scaled !== undefined
           ? beat
-            ? quantizeTimings({ dwell: poi.dwell, travel }, 60 / beat.period).dwell
-            : poi.dwell
+            ? quantizeTimings({ dwell: scaled, travel }, 60 / beat.period).dwell
+            : scaled
           : dwell
       poi.dwell = poiDwell
       if (poi.block) {
@@ -294,13 +306,21 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   })
 
   const slots = pages.flatMap((p) => p.slots)
+  const decor: DecorItem[] = []
+  for (const sl of slots) decor.push(...slotStickers(sl, palette, rng))
   return {
     version: 1,
     seed: opts.seed,
     stage: {
       kind: 'newspaper',
       pages,
-      paper: { ...paperDefaults, baseColor: '#efe6d2', seed: opts.seed % 97 },
+      paper: {
+        ...paperDefaults,
+        baseColor: palette.paper,
+        stain: 0.15,
+        fold: 0.3,
+        seed: opts.seed % 97,
+      },
       opening: { duration: opening },
       transitions,
       lenses,
@@ -311,6 +331,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     fov: FOV,
     duration: pathDuration(keys),
     markers,
+    decor,
     devices: {
       film: { grain: 0.16, vignette: 0.5, vignetteOffset: 0.25 },
       dof: { enabled: true, focusRange: 1.4, bokehScale: 3 },

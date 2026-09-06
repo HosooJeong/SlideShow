@@ -36,7 +36,7 @@ describe('composeStream', () => {
   it('머무는 동안 카메라는 사진 앞에서 사진을 바라본다', () => {
     const s = comp.slots[2]
     // 창 = [도착 - 이동, 도착 + 머무름 + 이동]. 머무름 중간 = 시작 + 이동 + 머무름/2
-    const mid = s.kenburns.start + 1.15 + 1.7 / 2
+    const mid = s.kenburns.start + 1.3 + 2.3 / 2
     const pose = sampleCamera(comp.camera, mid)
     expect(pose.lookX).toBeCloseTo(s.x, 1)
     expect(pose.lookY).toBeCloseTo(s.y, 1)

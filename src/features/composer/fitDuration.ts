@@ -1,7 +1,7 @@
 export type Timings = { dwell: number; travel: number }
 
-export const DEFAULT_TIMINGS: Timings = { dwell: 2.4, travel: 1.3 }
-const LIMITS = { dwell: [1.2, 6.0], travel: [0.8, 2.6] } as const
+export const DEFAULT_TIMINGS: Timings = { dwell: 3.0, travel: 1.3 }
+const LIMITS = { dwell: [1.4, 7.0], travel: [0.8, 2.6] } as const
 
 /**
  * 기본 타이밍으로 만든 영상 길이(baseDuration)를 목표 길이(target)에 맞추기 위한 dwell/travel.

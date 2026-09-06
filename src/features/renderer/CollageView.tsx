@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { createPaperMaterial } from './devices/shaders/paperMaterial'
+import { createGradientMaterial } from './devices/shaders/gradientMaterial'
 import { SlotMesh } from './SlotMesh'
 import type { RenderClock } from './clock'
 import type { TextureMap, VideoMap } from './textures'
@@ -19,15 +20,19 @@ export function CollageView({
   videos?: VideoMap
   clock: RenderClock
 }) {
-  const paperMat = useMemo(
-    () => createPaperMaterial(stage.paper, [stage.width * 1.3, stage.height * 1.3]),
-    [stage.paper, stage.width, stage.height],
+  const bg = stage.background
+  const boardMat = useMemo(
+    () =>
+      bg
+        ? createGradientMaterial(bg[0], bg[1])
+        : createPaperMaterial(stage.paper, [stage.width * 1.3, stage.height * 1.3]),
+    [bg, stage.paper, stage.width, stage.height],
   )
-  useEffect(() => () => paperMat.dispose(), [paperMat])
+  useEffect(() => () => boardMat.dispose(), [boardMat])
   return (
     <>
-      <color attach="background" args={['#0c0b0a']} />
-      <mesh position={[0, 0, -0.01]} material={paperMat}>
+      <color attach="background" args={[bg ? bg[1] : '#0c0b0a']} />
+      <mesh position={[0, 0, -0.01]} material={boardMat}>
         <planeGeometry args={[stage.width * 1.3, stage.height * 1.3]} />
       </mesh>
       {composition.slots.map((slot) => {
@@ -38,7 +43,7 @@ export function CollageView({
             {/* 얕은 그림자 */}
             <mesh position={[slot.x + 0.05, slot.y - 0.06, slot.z - 0.005]}>
               <planeGeometry args={[slot.w + 0.14, slot.h + 0.14]} />
-              <meshBasicMaterial color="#000" transparent opacity={0.18} depthWrite={false} />
+              <meshBasicMaterial color="#000" transparent opacity={0.12} depthWrite={false} />
             </mesh>
             <SlotMesh
               slot={slot}

@@ -41,6 +41,8 @@ export function PlayerPage() {
       seed: project.seed,
       aspect: project.aspect,
       halftoneStrength: halftone ? 0.5 : 0,
+      theme: project.theme,
+      pace: project.pace ?? 'normal',
     }
     const beat = beatOptsFrom(project.music)
     if (stageKind === 'paper') return composePaper(items, base)
