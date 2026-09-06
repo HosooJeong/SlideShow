@@ -15,6 +15,7 @@ import { BlendFunction, type DepthOfFieldEffect, ToneMappingMode } from 'postpro
 import { Group, PerspectiveCamera as ThreeCamera, Vector2, Vector3 } from 'three'
 import { sampleCamera } from './camera/cameraPath'
 import { createPaperMaterial, type PaperParams } from './devices/shaders/paperMaterial'
+import { createGradientMaterial } from './devices/shaders/gradientMaterial'
 import { RuleMesh } from './RuleMesh'
 import { SlotMesh } from './SlotMesh'
 import { TextBlockMesh } from './TextBlockMesh'
@@ -254,8 +255,23 @@ function NewspaperView({
     if (restRef.current) restRef.current.visible = u >= 1
   })
 
+  // 책상: 어두운 크라프트 결의 배경판. 면 밖 여백이 검게 비지 않게
+  const deskMat = useMemo(
+    () =>
+      createGradientMaterial(
+        '#2b2521',
+        '#161211',
+        { kind: 'kraft', color: '#3a312a', scale: 30, strength: 0.7 },
+        1,
+      ),
+    [],
+  )
+  useEffect(() => () => deskMat.dispose(), [deskMat])
   return (
     <>
+      <mesh position={[0, 0, -0.6]} material={deskMat}>
+        <planeGeometry args={[400, 400]} />
+      </mesh>
       {front && (
         <group ref={frontRef} position={[front.x, front.y, 0]}>
           <group position={[-front.x, -front.y, 0]}>

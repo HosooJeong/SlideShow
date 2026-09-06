@@ -18,8 +18,9 @@ import { distanceForHeight, FOV } from './composePaper'
 import { planClip } from '@/features/renderer/clip'
 import { scheduleSwaps } from '@/features/renderer/playlist'
 import { slotStickers } from './decor'
+import { circleAround, doodle, resetPenIds, underline } from './pen'
 import { PACE_SCALE, paletteFor } from '@/features/themes/palette'
-import type { DecorItem } from '@/features/renderer/types'
+import type { DecorItem, PenStroke } from '@/features/renderer/types'
 import type { Project } from '@/features/media/types'
 import { phaseDelay, quantizeTimings, quantizeToBeat, type BeatOpts } from './beatSync'
 import { doljanchiCopy, fillCopy, type CopyPool, type CopyVars } from './copy/doljanchi'
@@ -308,6 +309,61 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
   const slots = pages.flatMap((p) => p.slots)
   const decor: DecorItem[] = []
   for (const sl of slots) decor.push(...slotStickers(sl, palette, rng))
+  // 편집자의 빨간 펜: 헤드라인 밑줄, 가끔 사진 둘레 동그라미, 여백에 별·하트 체크
+  resetPenIds()
+  const strokes: PenStroke[] = []
+  const RED = '#d23c3c'
+  const PEN_Z = 0.02
+  pages.forEach((page, pi) => {
+    const arrive = pi === 0 ? opening : (page.texts[0]?.appear.t0 ?? 0) + 0.9
+    const headline = page.texts.find((tb) => tb.fontSize >= 0.4)
+    if (headline) {
+      const y = headline.y - headline.fontSize * headline.lineHeight * 1.02
+      strokes.push(
+        underline(headline.x + headline.w * 0.1, headline.x + headline.w * 0.9, y, rng, {
+          color: RED,
+          width: 0.06,
+          z: PEN_Z,
+          t0: arrive + 1.1,
+          duration: 0.55,
+        }),
+      )
+    }
+    if (page.slots.length > 0 && rng.next() < 0.5) {
+      const sl = rng.pick(page.slots)
+      const a = sl.appear
+      strokes.push(
+        circleAround(sl.x, sl.y, sl.w, sl.h, rng, {
+          color: RED,
+          width: 0.07,
+          z: PEN_Z,
+          t0: a.t0 + a.duration + 0.3,
+          duration: 0.9,
+        }),
+      )
+    }
+    if (rng.next() < 0.6) {
+      const sx = page.x + (rng.next() < 0.5 ? -1 : 1) * (page.w / 2 - 0.5)
+      const sy = page.y + page.h / 2 - 0.5
+      strokes.push(
+        ...doodle(
+          rng.pick(['star', 'heart', 'sparkle'] as const),
+          sx,
+          sy,
+          0.55,
+          rng.range(-0.3, 0.3),
+          rng,
+          {
+            color: RED,
+            width: 0.055,
+            z: PEN_Z,
+            t0: arrive + 1.8,
+            duration: 0.6,
+          },
+        ),
+      )
+    }
+  })
   return {
     version: 1,
     seed: opts.seed,
@@ -332,6 +388,7 @@ export function composeNewspaper(media: ComposeMedia[], opts: NewspaperOptions):
     duration: pathDuration(keys),
     markers,
     decor,
+    pen: { strokes, texts: [] },
     devices: {
       film: { grain: 0.16, vignette: 0.5, vignetteOffset: 0.25 },
       dof: { enabled: true, focusRange: 1.4, bokehScale: 3 },

@@ -240,7 +240,7 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
         tDraw += 0.45
       }
       // 사진 둘레 동그라미(가끔, 작은 사진에만: 큰 사진은 원이 화면을 벗어난다)
-      const small = layoutSlots.filter((sl) => sl.w < W * 0.45 && sl.h < H * 0.55)
+      const small = layoutSlots.filter((sl) => sl.w < W * 0.36 && sl.h < H * 0.46)
       if (small.length > 0 && rng.next() < 0.35) {
         const sl = rng.pick(small)
         strokes.push(
@@ -327,6 +327,17 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
         seed: opts.seed % 97,
       },
       background: palette.background,
+      pattern: (() => {
+        const kinds = ['dots', 'gingham', 'grid', 'stripes', 'kraft'] as const
+        const kind = kinds[rng.int(0, kinds.length - 1)]
+        const kraft = kind === 'kraft'
+        return {
+          kind,
+          color: kraft ? '#d9c2a3' : rng.pick(palette.accents),
+          scale: kind === 'grid' ? 18 : kind === 'gingham' ? 14 : kind === 'stripes' ? 22 : 12,
+          strength: kraft ? 0.55 : kind === 'gingham' ? 0.22 : 0.3,
+        }
+      })(),
       layouts,
     },
     slots,

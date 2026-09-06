@@ -6,11 +6,14 @@ import type {
   AlbumShotKind,
   AlbumStage,
   Composition,
+  HandText,
   LeafAttach,
+  PenStroke,
   Slot,
   TextBlock,
 } from '@/features/renderer/types'
 import type { Project } from '@/features/media/types'
+import { caption as penCaption, doodle, resetPenIds } from './pen'
 import { createRng, type Rng } from '@/shared/utils/seededRandom'
 import { PACE_SCALE } from '@/features/themes/palette'
 import { quantizeToBeat, type BeatOpts } from './beatSync'
@@ -111,6 +114,10 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
 
   const slots: Slot[] = []
   const texts: TextBlock[] = []
+  resetPenIds()
+  const pendingCaps: { text: string; attach: LeafAttach; px: number; py: number }[] = []
+  const penStrokes: PenStroke[] = []
+  const penTexts: HandText[] = []
   const mkSlot = (
     id: string,
     m: ComposeMedia,
@@ -211,24 +218,13 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
         plan.slots.push(mkSlot(`al-${attach.leaf}${attach.side[0]}-${i}`, m, c, attach, fit))
       })
       if ((preset === 'solo' || preset === 'blank') && captionIdx < captions.length) {
-        const cap: TextBlock = {
-          id: `al-cap-${attach.leaf}${attach.side[0]}`,
+        // 손글씨 캡션(펜 레이어). 시각은 샷이 정해진 뒤 스프레드 창으로 채운다
+        pendingCaps.push({
           text: captions[captionIdx++],
-          x: MARGIN,
-          y: preset === 'solo' ? -0.78 : -PAGE_H / 2 + MARGIN + 0.25,
-          w: PAGE_W - MARGIN * 2,
-          h: 0.2,
-          fontSize: 0.065,
-          weight: 'regular',
-          align: 'center',
-          color: '#8a837c',
-          lineHeight: 1.3,
-          letterSpacing: 0.1,
-          appear: noAppear,
           attach,
-        }
-        plan.caption = cap
-        texts.push(cap)
+          px: PAGE_W / 2,
+          py: preset === 'solo' ? -0.78 : -PAGE_H / 2 + MARGIN + 0.3,
+        })
       }
       return plan
     }
@@ -391,6 +387,48 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
   t += endDur
   const duration = t
 
+  // 손글씨 캡션: 해당 스프레드가 보이는 창에서 쓰고, 컷에서 사라진다
+  for (const pc of pendingCaps) {
+    const spread = pc.attach.side === 'back' ? pc.attach.leaf + 1 : pc.attach.leaf
+    const win = shots.filter((sh) => sh.spread === spread)
+    if (win.length === 0) continue
+    const w0 = Math.min(...win.map((sh) => sh.t0))
+    const w1 = Math.max(...win.map((sh) => sh.t1))
+    const wx = pc.attach.side === 'back' ? -PAGE_W + pc.px : pc.px
+    const c = penCaption(pc.text, wx, pc.py, {
+      fontSize: 0.115,
+      color: '#4a423c',
+      rotation: rng.range(-0.02, 0.02),
+      align: 'center',
+      z: zPage + 0.003,
+      t0: w0 + 0.9,
+      t1: w1,
+      perChar: 0.12,
+    })
+    penTexts.push(c.text)
+    if (rng.next() < 0.4) {
+      const icon = rng.pick(['heart', 'star', 'sparkle'] as const)
+      penStrokes.push(
+        ...doodle(
+          icon,
+          wx + pc.text.length * 0.115 * 0.3 + 0.2,
+          pc.py + 0.02,
+          0.16,
+          rng.range(-0.3, 0.3),
+          rng,
+          {
+            color: '#c96b7b',
+            width: 0.016,
+            z: zPage + 0.003,
+            t0: w0 + 0.9 + c.text.duration + 0.2,
+            duration: 0.5,
+            t1: w1,
+          },
+        ),
+      )
+    }
+  }
+
   // 소품: 컵(오른쪽 위), 낱장 인화지(왼쪽 아래)
   const prints: AlbumStage['props']['prints'] = []
   media.slice(-2).forEach((m, i) => {
@@ -428,6 +466,7 @@ export function composeAlbum(media: ComposeMedia[], opts: AlbumOptions): Composi
     fov: FOV,
     duration,
     markers,
+    pen: { strokes: penStrokes, texts: penTexts },
     handheld: { amp: 0.012, rot: 0.0022, freq: 0.37 },
     devices: {
       film: { grain: 0.03, vignette: 0.26, vignetteOffset: 0.28 },
