@@ -24,9 +24,9 @@ export function CollageView({
   const boardMat = useMemo(
     () =>
       bg
-        ? createGradientMaterial(bg[0], bg[1])
+        ? createGradientMaterial(bg[0], bg[1], stage.pattern, stage.width / stage.height)
         : createPaperMaterial(stage.paper, [stage.width * 1.3, stage.height * 1.3]),
-    [bg, stage.paper, stage.width, stage.height],
+    [bg, stage.pattern, stage.paper, stage.width, stage.height],
   )
   useEffect(() => () => boardMat.dispose(), [boardMat])
   return (

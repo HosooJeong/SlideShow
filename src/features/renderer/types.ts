@@ -195,6 +195,8 @@ export type CollageStage = {
   paper: PaperParams
   /** 밝은 그라데이션 배경(위→아래). 있으면 종이 대신 쓴다 */
   background?: [string, string]
+  /** 문구 패턴(도트·깅엄·모눈·크라프트·줄무늬) */
+  pattern?: BoardPattern
   layouts: { t0: number; t1: number; preset: string }[]
 }
 
@@ -247,6 +249,14 @@ export type AlbumShot = {
   kind: AlbumShotKind
   /** 샷별 심도 */
   dof: { focusRange: number; bokehScale: number }
+}
+
+/** 보드 배경 패턴. scale = 보드 세로 기준 반복 수 */
+export type BoardPattern = {
+  kind: 'dots' | 'gingham' | 'grid' | 'kraft' | 'stripes'
+  color: string
+  scale: number
+  strength: number
 }
 
 /** 장식 스티커·테이프·컨페티. 이미지 없이 셰이더 SDF로 그린다 */
