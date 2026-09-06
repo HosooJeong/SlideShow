@@ -11,11 +11,11 @@ describe('fitTimings', () => {
   it('목표가 길면 머무름이 늘고, 한계 안에 머문다', () => {
     const t = fitTimings(60, 120)
     expect(t.dwell).toBeGreaterThan(DEFAULT_TIMINGS.dwell)
-    expect(t.dwell).toBeLessThanOrEqual(6)
-    expect(fitTimings(60, 6000).dwell).toBe(6)
+    expect(t.dwell).toBeLessThanOrEqual(7)
+    expect(fitTimings(60, 6000).dwell).toBe(7)
   })
   it('목표가 짧으면 줄어들되 하한 이상', () => {
-    expect(fitTimings(60, 10).dwell).toBeGreaterThanOrEqual(1.2)
+    expect(fitTimings(60, 10).dwell).toBeGreaterThanOrEqual(1.4)
   })
   it('잘못된 입력은 기본값', () => {
     expect(fitTimings(0, 30)).toEqual(DEFAULT_TIMINGS)

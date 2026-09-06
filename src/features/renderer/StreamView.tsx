@@ -66,6 +66,15 @@ function Dust({ dust, clock }: { dust: StreamStage['dust']; clock: RenderClock }
     }
     const g = new BufferGeometry()
     g.setAttribute('position', new Float32BufferAttribute(pos, 3))
+    const palette = (dust.colors?.length ? dust.colors : ['#d9c9a8']).map((c) => new Color(c))
+    const col = new Float32Array(dust.count * 3)
+    for (let i = 0; i < dust.count; i++) {
+      const c = palette[rng.int(0, palette.length - 1)]
+      col[i * 3] = c.r
+      col[i * 3 + 1] = c.g
+      col[i * 3 + 2] = c.b
+    }
+    g.setAttribute('color', new Float32BufferAttribute(col, 3))
     return g
   }, [dust])
   useEffect(() => () => geometry.dispose(), [geometry])
@@ -79,8 +88,8 @@ function Dust({ dust, clock }: { dust: StreamStage['dust']; clock: RenderClock }
     <group ref={ref}>
       <points geometry={geometry}>
         <pointsMaterial
-          color="#d9c9a8"
-          size={0.045}
+          vertexColors
+          size={0.05}
           sizeAttenuation
           transparent
           opacity={0.55}

@@ -123,6 +123,33 @@ export function ProjectSettings({ project, onChange }: Props) {
             <option value="1:1">1:1</option>
           </select>
         </label>
+        <label className={label}>
+          테마(색감·장식)
+          <select
+            className={field}
+            value={project.theme}
+            onChange={(e) => onChange({ theme: e.target.value as Project['theme'] })}
+            data-testid="set-theme"
+          >
+            <option value="doljanchi">돌잔치 (파스텔)</option>
+            <option value="birthday">생일 (비비드)</option>
+            <option value="wedding">결혼 (차분한 톤)</option>
+            <option value="travel">여행 (하늘·노랑)</option>
+          </select>
+        </label>
+        <label className={label}>
+          진행 속도
+          <select
+            className={field}
+            value={project.pace ?? 'normal'}
+            onChange={(e) => onChange({ pace: e.target.value as NonNullable<Project['pace']> })}
+            data-testid="set-pace"
+          >
+            <option value="slow">느리게 (여유롭게)</option>
+            <option value="normal">보통</option>
+            <option value="fast">빠르게</option>
+          </select>
+        </label>
       </div>
 
       <div className="flex flex-col gap-2">

@@ -7,6 +7,10 @@ import type { CollageStage, Composition, Slot, SwapKind } from '@/features/rende
 import { createRng } from '@/shared/utils/seededRandom'
 import { phaseDelay, quantizeToBeat, type BeatOpts } from './beatSync'
 import { distanceForHeight, FOV, stageSize, type ComposeMedia } from './composePaper'
+import { confetti, slotStickers } from './decor'
+import { PACE_SCALE, paletteFor } from '@/features/themes/palette'
+import type { DecorItem } from '@/features/renderer/types'
+import type { Project } from '@/features/media/types'
 
 export type CollageOptions = {
   seed: number
@@ -18,6 +22,8 @@ export type CollageOptions = {
   halftoneStrength?: number
   clips?: { maxSeconds: number; volume: number }
   beat?: BeatOpts
+  theme?: Project['theme']
+  pace?: Project['pace']
 }
 
 /** 레이아웃 프리셋: 보드(0~1) 좌표의 셀들 [x, y, w, h] (y는 위가 0) */
@@ -76,11 +82,17 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
   const rng = createRng(opts.seed)
   const [W, H] = stageSize(opts.aspect)
   const beat = opts.beat
-  const interval = beat ? quantizeToBeat(opts.interval ?? 0.9, beat) : (opts.interval ?? 0.9)
-  const hold = beat ? quantizeToBeat(opts.hold ?? 6.4, beat) : (opts.hold ?? 6.4)
-  const swapDuration = Math.min(0.38, interval * 0.45)
-  const margin = Math.min(W, H) * 0.06
-  const gutter = Math.min(W, H) * 0.025
+  const pace = PACE_SCALE[opts.pace ?? 'normal']
+  const palette = paletteFor(opts.theme)
+  // 콜라주는 느긋하게: 기본 교체 1.6s, 레이아웃 10s (속도 배율 적용)
+  const interval = beat
+    ? quantizeToBeat((opts.interval ?? 1.6) * pace, beat)
+    : (opts.interval ?? 1.6) * pace
+  const hold = beat ? quantizeToBeat((opts.hold ?? 10) * pace, beat) : (opts.hold ?? 10) * pace
+  const swapDuration = Math.min(0.42, interval * 0.35)
+  const decor: DecorItem[] = []
+  const margin = Math.min(W, H) * 0.09
+  const gutter = Math.min(W, H) * 0.045
   const boardW = W - margin * 2
   const boardH = H - margin * 2
 
@@ -125,8 +137,8 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
         z: 0.02 + li * 0.0006 + i * 0.0001,
         w,
         h,
-        rotation: 0,
-        frame: 'print',
+        rotation: rng.range(-2.5, 2.5) * (Math.PI / 180),
+        frame: 'polaroid',
         kenburns: {
           start: t0,
           end: t1,
@@ -154,6 +166,21 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
     consumed += used
     slots.push(...layoutSlots)
     layouts.push({ t0, t1, preset })
+    // 장식: 슬롯 모서리 테이프·스티커(레이아웃 창에만), 배경 컨페티(레이아웃마다 다르게)
+    for (const sl of layoutSlots)
+      decor.push(...slotStickers(sl, palette, rng, { t0: t0 + 0.15, t1: t1 - 0.1 }))
+    decor.push(
+      ...confetti({
+        count: 18,
+        area: { x: 0, y: 0, w: W * 0.98, h: H * 0.98 },
+        keepOut: layoutSlots.map((sl) => ({ x: sl.x, y: sl.y, w: sl.w + 0.5, h: sl.h + 0.5 })),
+        z: 0.012,
+        palette,
+        rng,
+        size: [0.14, 0.34],
+        window: { t0: t0 + 0.05, t1: t1 },
+      }),
+    )
 
     // 카메라: 레이아웃 동안 살짝 밀어 들어가고 드리프트, 레이아웃 전환 때 원위치
     const dx = rng.range(-0.15, 0.15)
@@ -202,9 +229,11 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
         fold: 0.2,
         seed: opts.seed % 97,
       },
+      background: palette.background,
       layouts,
     },
     slots,
+    decor,
     camera: keys,
     fov: FOV,
     duration,
@@ -213,7 +242,7 @@ export function composeCollage(media: ComposeMedia[], opts: CollageOptions): Com
       .flatMap((s) => (s.playlist ?? []).slice(1).map((p) => p.t0))
       .sort((a, b) => a - b),
     devices: {
-      film: { grain: 0.14, vignette: 0.45, vignetteOffset: 0.25 },
+      film: { grain: 0.08, vignette: 0.25, vignetteOffset: 0.35 },
       dof: null,
       halftone: { params: halftoneDefaults, strength: opts.halftoneStrength ?? 0 },
       ink: { ...inkRevealDefaults, edge: 0.1 },

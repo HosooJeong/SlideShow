@@ -35,6 +35,8 @@ export type Project = {
   music?: ProjectMusic
   /** 영상 클립 설정 */
   clips?: { audio: 'mute' | 'original'; maxSeconds: number }
+  /** 진행 속도 */
+  pace?: 'slow' | 'normal' | 'fast'
   createdAt: number
   updatedAt: number
 }

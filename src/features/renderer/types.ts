@@ -32,7 +32,7 @@ export type Slot = {
   w: number
   h: number
   rotation: number
-  frame: 'print' | 'none'
+  frame: 'print' | 'polaroid' | 'none'
   kenburns: KenBurns
   appear: Appear
   /** 잉크 번짐 시드(슬롯마다 다르게) */
@@ -175,6 +175,8 @@ export type StreamStage = {
     radius: number
     length: number
     center: [number, number, number]
+    /** 파스텔 먼지 색상 후보(없으면 기본 종이색) */
+    colors?: string[]
   }
 }
 
@@ -184,7 +186,29 @@ export type CollageStage = {
   width: number
   height: number
   paper: PaperParams
+  /** 밝은 그라데이션 배경(위→아래). 있으면 종이 대신 쓴다 */
+  background?: [string, string]
   layouts: { t0: number; t1: number; preset: string }[]
+}
+
+/** 장식 스티커·테이프·컨페티. 이미지 없이 셰이더 SDF로 그린다 */
+export type DecorShape = 'circle' | 'heart' | 'star' | 'sparkle' | 'tape' | 'ring'
+export type DecorItem = {
+  shape: DecorShape
+  x: number
+  y: number
+  z: number
+  /** 가로 크기(무대 단위). 테이프는 가로가 길다 */
+  size: number
+  /** 세로/가로 비율 */
+  aspect: number
+  rotation: number
+  color: string
+  opacity: number
+  /** 살랑거림: 진폭(무대 단위), 속도(rad/s), 위상 */
+  bob: [number, number, number]
+  /** 보이는 창. 없으면 항상 */
+  window?: { t0: number; t1: number }
 }
 
 export type PaperStage = {
@@ -214,4 +238,6 @@ export type Composition = {
   devices: Devices
   /** 카메라가 관심 지점에 도착하는 시각들(비트 동기 검증·시크바 표시용) */
   markers?: number[]
+  /** 장식 레이어 */
+  decor?: DecorItem[]
 }

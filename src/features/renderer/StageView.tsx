@@ -14,6 +14,7 @@ import { CollageView } from './CollageView'
 import { ParticleTransitionMesh } from './devices/ParticleTransitionMesh'
 import { GlassLens } from './devices/GlassLens'
 import { CurlSheet } from './devices/CurlSheet'
+import { DecorLayer } from './devices/DecorLayer'
 import type { RenderClock } from './clock'
 import type { TextureMap, VideoMap } from './textures'
 import type { Composition, LensPass, NewspaperStage, Page } from './types'
@@ -104,6 +105,9 @@ export function StageView({
           videos={videos}
           clock={clock}
         />
+      )}
+      {composition.decor && composition.decor.length > 0 && (
+        <DecorLayer items={composition.decor} clock={clock} />
       )}
       <EffectComposer multisampling={0}>
         {devices.dof?.enabled ? (
